@@ -2,8 +2,8 @@
 
 **Target:** tests/fixtures/badcli/badcli.py
 **Date:** 2026-06-26
-**Score:** 7 / 32 applicable checks (22%)
-**Failing gaps:** 11 Blocker · 11 Friction · 3 Target
+**Score:** 6 / 24 applicable checks (25%)
+**Failing gaps:** 9 Blocker · 7 Friction · 2 Target
 **Suspicious N/A warning:** Principles P8 (Async-aware execution) and P9 (Persistent identity through profiles) returned entirely N/A — verify these subsystems are genuinely absent rather than missed.
 
 ## Per-principle results
@@ -111,8 +111,8 @@
 - [ ] 2.1 — Add a `--json` path emitting `json.dumps(...)` for data commands (`info`, `ls`)  (badcli.py:6,9-10)
 - [ ] 2.4 — Return a non-zero exit on the invalid-visibility failure path  (badcli.py:21)
 - [ ] 4.2 — Require an explicit non-default `--force` flag before `delete` acts  (badcli.py:12-16)
-- [ ] 6.1 — Rename `info`→`get` and `ls`→`list`  (badcli.py:5,8,27,28)
 - [ ] 5.1 — Apply a default limit/page size to `ls`  (badcli.py:9)
+- [ ] 6.1 — Rename `info`→`get` and `ls`→`list`  (badcli.py:5,8,27,28)
 
 ### Friction (conformance, lower priority)
 - [ ] 1.3 — Define `--force`/`--yes` on the destructive `delete` command (badcli.py:12)
