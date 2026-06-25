@@ -42,6 +42,8 @@ this check looks for doesn't exist" means.
 | D5 | "No X found" semantics | Each check declares an **absence resolution**: PASS, N/A, or FAIL@severity (see §5). |
 | D6 | Severity's role | Priority (fix order) **and** a loop stop-gate: auto-fix Blockers + cheap Friction; halt and propose Targets. |
 | D7 | Remediation verification | Run **read-only commands only** (`--help`, `list`, `get`, `--json`, `--dry-run`) to confirm fixes; never destructive ones. |
+| D8 | What gets auto-fixed | Gate on **kind** (conformance vs feature), not severity. Conformance = localized edit → auto-fix; feature = new subsystem → propose-only. Severity orders *within* each. |
+| D9 | Profiles (P9) scope | P9 covers persisting a **recurring non-auth config bundle**, not auth. Auth/credentials handled upstream or via env are out of scope; a CLI whose only persistent state is auth scores N/A on P9. |
 
 ## 4. Architecture & flow
 
@@ -76,6 +78,7 @@ Per-check finding shape:
   "check_id": "1.1",
   "verdict": "pass | fail | na",
   "severity": "blocker | friction | target",   // meaningful only when fail
+  "kind": "conformance | feature",             // gates auto-fix vs propose
   "evidence": "src/cmd/delete.go:42  (or a one-line reason for pass-by-absence / na)",
   "fix_hint": "short remediation note"
 }
@@ -110,24 +113,31 @@ a reviewer can sanity-check that an N/A isn't masking a real gap.
 ## 6. Remediation loop
 
 1. Run `assess` → current scorecard.
-2. **Auto-fix** Blockers + cheap Friction. These are small conformance edits, by
-   construction (see the ladder in Appendix A): add `--json`, add `--force`/
-   `--yes`, add an `isatty` guard, enumerate the valid set in an enum error,
-   route data→stdout / diagnostics→stderr, rename off-convention verbs/flags
-   (`ls`→`list`, `info`→`get`, `--skip-confirmations`→`--force`,
+2. **Auto-fix** all failing **`conformance`** checks (severity orders them —
+   Blockers first). These are localized edits by construction: add `--json`, add
+   `--force`/`--yes`, add an `isatty` guard, enumerate the valid set in an enum
+   error, route data→stdout / diagnostics→stderr, rename off-convention
+   verbs/flags (`ls`→`list`, `info`→`get`, `--skip-confirmations`→`--force`,
    `--format=json`→`--json`). One fix per commit (per Nat's standard workflow);
-   a `/roborev-fix` pass fits after a batch.
+   a `/roborev-fix` pass fits after a batch. Failing `feature` checks are **never
+   auto-fixed**, regardless of severity.
 3. **Verify** each fix by running **read-only commands only** from the allowlist
    (`--help`, `list`, `get`, anything with `--json` or `--dry-run`). Never run
    destructive commands.
 4. **Re-assess** to confirm the check cleared and catch regressions.
-5. Repeat until **zero Blockers and no cheap Friction remain**.
-6. **Stop** and present Target-level gaps as proposals — profile system, async
-   ledger + `--wait`, versioned `agent-context`, `feedback`, `--deliver`. These
-   are features, not fixes; never auto-built.
+5. Repeat until **no failing `conformance` checks remain** (Blockers cleared
+   first, then the rest).
+6. **Stop** and present all failing **`feature`** checks as proposals — profile
+   system, async ledger + `--wait`, `agent-context`, skill manifest, `feedback`,
+   `--deliver`, naming-policy CI check. These are subsystems, not fixes; never
+   auto-built. Order proposals by severity.
 
-"Cheap Friction" = a localized edit (rename, add a flag, reorder a stream,
-extend an error string). Friction requiring new subsystems is treated as Target.
+**Kind vs severity are different axes.** Severity (Blocker/Friction/Target) is
+how bad the gap is, taken from the essay's per-principle ladder. Kind is how big
+the fix is: `conformance` = a localized edit (rename, add a flag, reorder a
+stream, extend an error string); `feature` = a new subsystem. Most Tier-1 gaps
+are conformance; most Tier-2 "Blocker"-rung gaps are features — which is exactly
+why we gate the loop on kind, not severity.
 
 ## 7. Report format (`SCORECARD.md`)
 
@@ -162,107 +172,108 @@ extend an error string). Friction requiring new subsystems is treated as Target.
 ## Appendix A — The rubric (10 principles → checks)
 
 Severity legend: **B** = Blocker, **F** = Friction, **T** = Target.
+Kind legend: **C** = conformance (localized edit → auto-fixable), **Ft** = feature (new subsystem → propose-only).
 Absence column = resolution when the thing the check looks for is absent.
 
 ### Tier 1 — Table Stakes
 
 **P1. Non-interactive by default**
 
-| id | Assertion | Sev | Absence |
-|----|-----------|-----|---------|
-| 1.1 | No command can block on an interactive prompt without a bypass | B | PASS (no prompts ⇒ non-interactive) |
-| 1.2 | TTY detection treats non-TTY stdin as headless (no prompt when not a TTY) | B | PASS |
-| 1.3 | A confirmation-bypass flag exists for destructive ops (`--force`/`--yes`) | F | N/A (no destructive ops) |
-| 1.4 | Interactive menus have a structured flag/file equivalent | F | PASS (no menus) |
-| 1.5 | Bypass convention is consistent across subcommands (one flag name) | F | N/A (0–1 bypass flag) |
+| id | Assertion | Sev | Kind | Absence |
+|----|-----------|-----|------|---------|
+| 1.1 | No command can block on an interactive prompt without a bypass | B | C | PASS (no prompts ⇒ non-interactive) |
+| 1.2 | TTY detection treats non-TTY stdin as headless (no prompt when not a TTY) | B | C | PASS |
+| 1.3 | A confirmation-bypass flag exists for destructive ops (`--force`/`--yes`) | F | C | N/A (no destructive ops) |
+| 1.4 | Interactive menus have a structured flag/file equivalent | F | C | PASS (no menus) |
+| 1.5 | Bypass convention is consistent across subcommands (one flag name) | F | C | N/A (0–1 bypass flag) |
 
 **P2. Structured, parseable output**
 
-| id | Assertion | Sev | Absence |
-|----|-----------|-----|---------|
-| 2.1 | The CLI supports structured (JSON) output | B | FAIL@B |
-| 2.2 | Every data-returning command supports `--json` (coverage) | F | N/A (none support it ⇒ 2.1 fails) |
-| 2.3 | One consistent flag name (`--json`, not mixed `--format`/`--output`) | F | N/A |
-| 2.4 | Exit codes: 0 success, non-zero failure, stable taxonomy | F | FAIL@B if always 0 on failure |
-| 2.5 | Data → stdout, diagnostics/errors → stderr | F | — |
-| 2.6 | ANSI/color suppressed when output isn't a terminal | F | — |
+| id | Assertion | Sev | Kind | Absence |
+|----|-----------|-----|------|---------|
+| 2.1 | The CLI supports structured (JSON) output | B | C | FAIL@B |
+| 2.2 | Every data-returning command supports `--json` (coverage) | F | C | N/A (none support it ⇒ 2.1 fails) |
+| 2.3 | One consistent flag name (`--json`, not mixed `--format`/`--output`) | F | C | N/A |
+| 2.4 | Exit codes: 0 success, non-zero failure, stable taxonomy | F | C | FAIL@B if always 0 on failure |
+| 2.5 | Data → stdout, diagnostics/errors → stderr | F | C | — |
+| 2.6 | ANSI/color suppressed when output isn't a terminal | F | C | — |
 
 **P3. Errors that teach, and enumerate**
 
-| id | Assertion | Sev | Absence |
-|----|-----------|-----|---------|
-| 3.1 | Failures produce a clear message (not silent, not a bare stack trace) | B | — |
-| 3.2 | Input validated early, before side effects | F | — |
-| 3.3 | Enum/choice rejections enumerate the valid set | F | N/A (no enum inputs) |
-| 3.4 | Errors include corrective guidance (valid invocation / example) | F | — |
+| id | Assertion | Sev | Kind | Absence |
+|----|-----------|-----|------|---------|
+| 3.1 | Failures produce a clear message (not silent, not a bare stack trace) | B | C | — |
+| 3.2 | Input validated early, before side effects | F | C | — |
+| 3.3 | Enum/choice rejections enumerate the valid set | F | C | N/A (no enum inputs) |
+| 3.4 | Errors include corrective guidance (valid invocation / example) | F | C | — |
 
 **P4. Safe retries & explicit mutation boundaries**
 
-| id | Assertion | Sev | Absence |
-|----|-----------|-----|---------|
-| 4.1 | Create operations are idempotent (idempotency token or natural key) | B | N/A (no create ops) |
-| 4.2 | Destructive operations require an explicit, non-default flag | B | N/A (no destructive ops) |
-| 4.3 | Consequential operations support `--dry-run` | F | N/A |
-| 4.4 | Mutation responses return the affected identifier(s) | F | N/A (no mutations) |
+| id | Assertion | Sev | Kind | Absence |
+|----|-----------|-----|------|---------|
+| 4.1 | Create operations are idempotent (idempotency token or natural key) | B | Ft | N/A (no create ops; often upstream's responsibility) |
+| 4.2 | Destructive operations require an explicit, non-default flag | B | C | N/A (no destructive ops) |
+| 4.3 | Consequential operations support `--dry-run` | F | C | N/A |
+| 4.4 | Mutation responses return the affected identifier(s) | F | C | N/A (no mutations) |
 
 **P5. Bounded responses**
 
-| id | Assertion | Sev | Absence |
-|----|-----------|-----|---------|
-| 5.1 | List-style commands have a bounded default (limit/page size) | B | N/A (no list commands) |
-| 5.2 | List commands support filtering and pagination/cursor | F | N/A |
-| 5.3 | Truncated output signals truncation and hints how to narrow | F | N/A |
-| 5.4 | MCP wrapper: each tool description fits a small audited token budget | T | N/A (no MCP wrapper) |
+| id | Assertion | Sev | Kind | Absence |
+|----|-----------|-----|------|---------|
+| 5.1 | List-style commands have a bounded default (limit/page size) | B | C | N/A (no list commands) |
+| 5.2 | List commands support filtering and pagination/cursor | F | Ft | N/A |
+| 5.3 | Truncated output signals truncation and hints how to narrow | F | C | N/A |
+| 5.4 | MCP wrapper: each tool description fits a small audited token budget | T | C | N/A (no MCP wrapper) |
 
 ### Tier 2 — Compounding
 
 **P6. Cross-CLI vocabulary consistency**
 
-| id | Assertion | Sev | Absence |
-|----|-----------|-----|---------|
-| 6.1 | Verbs follow universal conventions (`get` not `info`, `list` not `ls`) | B | — |
-| 6.2 | Flags follow conventions (`--force` not `--skip-confirmations`, `--json` not `--format=json`) | B | — |
-| 6.3 | Naming is internally consistent across subcommands | F | — |
-| 6.4 | Documented naming policy + mechanical check (CI/lint) enforces vocabulary | T | FAIL@T |
+| id | Assertion | Sev | Kind | Absence |
+|----|-----------|-----|------|---------|
+| 6.1 | Verbs follow universal conventions (`get` not `info`, `list` not `ls`) | B | C | — |
+| 6.2 | Flags follow conventions (`--force` not `--skip-confirmations`, `--json` not `--format=json`) | B | C | — |
+| 6.3 | Naming is internally consistent across subcommands | F | C | — |
+| 6.4 | Documented naming policy + mechanical check (CI/lint) enforces vocabulary | T | Ft | FAIL@T |
 
 **P7. Three-layer introspection**
 
-| id | Assertion | Sev | Absence |
-|----|-----------|-----|---------|
-| 7.1 | Machine-readable introspection exists (`agent-context`-style command/flag schema) | B | FAIL@B |
-| 7.2 | The machine introspection is versioned (`schema_version`) | F | N/A (7.1 fails) |
-| 7.3 | A long-form skill manifest (`SKILL.md`-style) teaches workflows | T | FAIL@T |
-| 7.4 | Introspection is generated/validated against the real implementation (in sync) | T | N/A (7.1 fails) |
+| id | Assertion | Sev | Kind | Absence |
+|----|-----------|-----|------|---------|
+| 7.1 | Machine-readable introspection exists (`agent-context`-style command/flag schema) | B | Ft | FAIL@B |
+| 7.2 | The machine introspection is versioned (`schema_version`) | F | C | N/A (7.1 fails) |
+| 7.3 | A long-form skill manifest (`SKILL.md`-style) teaches workflows | T | Ft | FAIL@T |
+| 7.4 | Introspection is generated/validated against the real implementation (in sync) | T | Ft | N/A (7.1 fails) |
 
 (Note: `--help` for humans is assumed present; its absence falls out of 7.1's "only `--help`, nothing structured" Blocker framing.)
 
 **P8. Async-aware execution** — *entire principle N/A if the CLI wraps no async API*
 
-| id | Assertion | Sev | Absence |
-|----|-----------|-----|---------|
-| 8.1 | Async-submitting commands offer `--wait` (block until done) | B | N/A (no async API) |
-| 8.2 | The poll loop uses exponential backoff + jitter | F | N/A |
-| 8.3 | A persistent job ledger records jobs across invocations | F | N/A |
-| 8.4 | A `jobs` command exposes `list`/`get`/`prune` over the ledger | F | N/A |
+| id | Assertion | Sev | Kind | Absence |
+|----|-----------|-----|------|---------|
+| 8.1 | Async-submitting commands offer `--wait` (block until done) | B | Ft | N/A (no async API) |
+| 8.2 | The poll loop uses exponential backoff + jitter | F | C | N/A (no poll loop / 8.1 absent) |
+| 8.3 | A persistent job ledger records jobs across invocations | F | Ft | N/A |
+| 8.4 | A `jobs` command exposes `list`/`get`/`prune` over the ledger | F | Ft | N/A |
 
-**P9. Persistent identity through profiles**
+**P9. Persistent identity through profiles** — *covers a recurring **non-auth** config bundle, not auth. Auth/credentials handled upstream or via env are out of scope.*
 
-| id | Assertion | Sev | Absence |
-|----|-----------|-----|---------|
-| 9.1 | A profile/config persistence mechanism exists | B | FAIL@B |
-| 9.2 | Profile management subcommands exist (`save`/`use`/`list`/`show`/`delete`) | F | N/A (9.1 fails) |
-| 9.3 | `--profile` is a persistent root flag; precedence flag > env > profile > default | F | N/A |
-| 9.4 | Profiles surfaced in machine introspection (`agent-context`) | F | N/A (depends on 7.1) |
-| 9.5 | Stable, documented storage location (`~/.<cli>/`) | F | N/A |
+| id | Assertion | Sev | Kind | Absence |
+|----|-----------|-----|------|---------|
+| 9.1 | If commands force re-specifying a recurring non-auth config bundle, the CLI can persist & reuse it (profiles / named config) | B | Ft | N/A (auth-only state, or no recurring non-auth config) |
+| 9.2 | Profile management subcommands exist (`save`/`use`/`list`/`show`/`delete`) | F | Ft | N/A (no profiles / 9.1 N/A) |
+| 9.3 | `--profile` is a persistent root flag; precedence flag > env > profile > default | F | C | N/A (no profiles) |
+| 9.4 | Profiles surfaced in machine introspection (`agent-context`) | F | C | N/A (no profiles / 7.1 absent) |
+| 9.5 | Stable, documented storage location (`~/.<cli>/`) | F | C | N/A (no profiles) |
 
 **P10. Two-way I/O**
 
-| id | Assertion | Sev | Absence |
-|----|-----------|-----|---------|
-| 10.1 | A feedback channel exists (`feedback <text>` recorded locally) | B | FAIL@B |
-| 10.2 | Feedback can POST upstream when configured, and that's discoverable | F | N/A (10.1 fails) |
-| 10.3 | Artifact-producing commands support `--deliver` (stdout/file/webhook) | F | N/A (no artifacts produced) |
-| 10.4 | File sinks write atomically; unknown schemes get a structured refusal | F | N/A (no `--deliver`) |
-| 10.5 | `--deliver` + `feedback` surfaced in machine introspection | T | N/A (depends on 7.1) |
+| id | Assertion | Sev | Kind | Absence |
+|----|-----------|-----|------|---------|
+| 10.1 | A feedback channel exists (`feedback <text>` recorded locally) | B | Ft | FAIL@B |
+| 10.2 | Feedback can POST upstream when configured, and that's discoverable | F | C | N/A (10.1 fails) |
+| 10.3 | Artifact-producing commands support `--deliver` (stdout/file/webhook) | F | Ft | N/A (no artifacts produced) |
+| 10.4 | File sinks write atomically; unknown schemes get a structured refusal | F | C | N/A (no `--deliver`) |
+| 10.5 | `--deliver` + `feedback` surfaced in machine introspection | T | C | N/A (depends on 7.1) |
 
 **Totals:** 10 principles, ~46 checks (≈ 4–5 per principle).
