@@ -8,6 +8,7 @@ per-call. P9 must be N/A, not a Blocker fail.
 - P8 all na — no async API wrapped
 - 6.1 pass — verbs are `get`/`list`
 - 2.1 pass — `--json` present; output is JSON
-- 3.3 pass-by-absence or pass — auth error names where to get a token (3.4)
+- 3.3 na — no enum/choices inputs (corrective-guidance credit is 3.4, which passes)
+- 3.4 pass — auth error names where to get a token
 - Suspicious-N/A: P8 and P9 fully N/A is expected here, but the scorecard must
   still SHOW the warning so the reviewer can confirm it's legitimate.
