@@ -276,4 +276,4 @@ Absence column = resolution when the thing the check looks for is absent.
 | 10.4 | File sinks write atomically; unknown schemes get a structured refusal | F | C | N/A (no `--deliver`) |
 | 10.5 | `--deliver` + `feedback` surfaced in machine introspection | T | C | N/A (depends on 7.1) |
 
-**Totals:** 10 principles, ~46 checks (≈ 4–5 per principle).
+**Totals:** 10 principles, 45 checks (P1–P5 = 23, P6–P10 = 22; ≈ 4–5 per principle).
