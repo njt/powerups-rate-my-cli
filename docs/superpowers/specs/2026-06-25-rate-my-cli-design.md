@@ -277,3 +277,34 @@ Absence column = resolution when the thing the check looks for is absent.
 | 10.5 | `--deliver` + `feedback` surfaced in machine introspection | T | C | N/A (depends on 7.1) |
 
 **Totals:** 10 principles, 45 checks (P1–P5 = 23, P6–P10 = 22; ≈ 4–5 per principle).
+
+---
+
+## Appendix B — Post-release hardening (2026-07-05)
+
+First real-world runs against two Go/cobra CLIs (`azdo`, `go365`) surfaced
+detection weaknesses that the synthetic fixtures could not. Core Sev/Kind/Absence
+values in Appendix A are unchanged; the following operational guidance was added
+to `rubric.md` (which now carries the authoritative **Detection methodology**
+preamble):
+
+- **Declared ≠ honored.** A framework-global/persistent flag (cobra
+  `PersistentFlags`) can be declared yet ignored by a specific handler. Flag
+  checks (1.1, 1.2, 2.2, 4.3, 5.1) must verify each handler *reads* the flag, not
+  just that it exists — this caught real bugs (`pr comment` ignoring
+  `--no-prompt`; `search` ignoring `--top`).
+- **Absence vs informative-fail.** N/A applies only when a check's own
+  precondition is absent; if the subject exists but the capability is missing,
+  that's a fail (clarified on 4.3).
+- **Idiomatic verb sets (6.1).** Downgrade a non-canonical verb from Blocker to
+  Friction when the set is internally consistent and matches a documented target
+  convention (`gh`-style `view`; filesystem `ls/cat/cp/mv/rm` on a drive
+  subcommand). Generic, inconsistent `info`/`ls` stay Blocker.
+- **7.1 prose-guide ≠ schema.** A hand-written agent guide, even emitted as JSON,
+  does not satisfy machine introspection unless it enumerates the real
+  command/flag tree.
+- **10.3 bare `--output`.** A plain file-path sink with no scheme abstraction is
+  partial credit (fail@F) when artifacts are produced — N/A only when no command
+  emits a downloadable artifact.
+
+Validation scorecards for both CLIs are committed under `tests/real-runs/`.
