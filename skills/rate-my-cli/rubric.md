@@ -8,13 +8,36 @@ Detection: how to confirm statically. Evaluators read source only; they never ru
 Verdict per check: `pass | fail | na`. Report every pass-by-absence and every N/A with its
 one-line reason. Exclude N/A from the score denominator.
 
+## Detection methodology (read before evaluating)
+
+Hardened by running this rubric against real Go/cobra CLIs (azdo, go365):
+
+- **Declared ≠ honored.** A flag being *declared* — especially a framework-global
+  or persistent root flag (cobra `PersistentFlags`, click groups, etc.) — does
+  not mean every handler *reads* it. For any flag-coverage check (1.1, 1.2, 2.1,
+  2.2, 4.3, 5.1, …), open each relevant handler and confirm it actually consumes
+  the flag; do not pass on the grep-for-declaration alone. A persistent
+  `--json`/`--no-prompt`/`--top` that a specific handler ignores is a **fail for
+  that handler** (real bugs found this way: `pr comment` ignoring `--no-prompt`;
+  `search` ignoring `--top`).
+- **Absence vs informative-fail.** A check resolves to **N/A only when its own
+  precondition/subject is absent** (e.g. "no destructive ops", "no list
+  commands", "wraps no async API"). If the subject *exists* but the capability is
+  missing, that is a **fail**, not N/A — e.g. 4.3 `--dry-run` is N/A only when
+  there are no consequential ops; if they exist without it, fail.
+- **Idiomatic verb sets (6.1).** A non-canonical verb is a Blocker only when it's
+  *inconsistent* or *surprising*. A coherent, internally-consistent set that
+  matches a documented target convention — `gh`-style `view`, or filesystem
+  `ls/cat/cp/mv/rm` on a drive/file subcommand — is a low-severity **Friction**
+  (fix: alias the canonical verb), not a Blocker.
+
 ## Tier 1 — Table Stakes
 
 ### P1. Non-interactive by default
 
 | id | Assertion | Sev | Kind | Absence | Detection |
 |----|-----------|-----|------|---------|-----------|
-| 1.1 | No command can block on an interactive prompt without a bypass | B | C | PASS (no prompts ⇒ non-interactive) | Grep prompt calls (`input(`, `readline`, `inquirer`, `prompt(`, `Scanf`, `survey.`, `click.confirm`, `click.prompt`) and check a bypass flag (`--force`/`--yes`/`--no-input`) short-circuits each. |
+| 1.1 | No command can block on an interactive prompt without a bypass | B | C | PASS (no prompts ⇒ non-interactive) | Grep prompt calls (`input(`, `readline`, `bufio.NewReader(os.Stdin)`, `inquirer`, `prompt(`, `Scanf`, `survey.`, `click.confirm`, `click.prompt`) and confirm the handler actually *honors* a bypass flag (`--force`/`--yes`/`--no-input`) — a declared-but-unread persistent flag does not count (see Detection methodology). |
 | 1.2 | TTY detection treats non-TTY stdin as headless (no prompt when not a TTY) | B | C | PASS | Look for `isatty`/`sys.stdin.isatty()`/`process.stdin.isTTY` guarding any prompt; a prompt with no TTY guard fails. |
 | 1.3 | A confirmation-bypass flag exists for destructive ops (`--force`/`--yes`) | F | C | N/A (no destructive ops) | Find delete/destroy/prune/reset commands; check each defines `--force`/`--yes`. |
 | 1.4 | Interactive menus have a structured flag/file equivalent | F | C | PASS (no menus) | Find select/menu prompts; check a flag/file can supply the value non-interactively. |
@@ -25,7 +48,7 @@ one-line reason. Exclude N/A from the score denominator.
 | id | Assertion | Sev | Kind | Absence | Detection |
 |----|-----------|-----|------|---------|-----------|
 | 2.1 | The CLI supports structured (JSON) output | B | C | FAIL@B | Grep for a `--json`/`json.dumps`/`JSON.stringify` path on any data command. |
-| 2.2 | Every data-returning command supports `--json` (coverage) | F | C | N/A (none support it ⇒ 2.1 fails) | Count data commands vs those wiring `--json`. |
+| 2.2 | Every data-returning command supports `--json` (coverage) | F | C | N/A (none support it ⇒ 2.1 fails) | Count data commands vs those that actually emit JSON in the handler. A persistent/root `--json` counts only for handlers that read it — verify per handler, don't pass the whole CLI off one declaration (see Detection methodology). |
 | 2.3 | One consistent flag name (`--json`, not mixed `--format`/`--output`) | F | C | N/A | Grep flag names: fail if `--format`/`--output`/`-o json` coexist with `--json`. |
 | 2.4 | Exit codes: 0 success, non-zero failure, stable taxonomy | F | C | FAIL@B if always 0 on failure | Inspect exit paths (`sys.exit`/`os.Exit`/`process.exit`): fail@B if all exits are 0 even on failure. |
 | 2.5 | Data → stdout, diagnostics/errors → stderr | F | C | — | Data prints to stdout and errors/logs to stderr (`sys.stderr`, `console.error`, `fmt.Fprintln(os.Stderr,...)`). |
@@ -46,7 +69,7 @@ one-line reason. Exclude N/A from the score denominator.
 |----|-----------|-----|------|---------|-----------|
 | 4.1 | Create operations are idempotent (idempotency token or natural key) | B | Ft | N/A (no create ops; often upstream's responsibility) | Create handlers accept an idempotency key or use a natural key (often N/A when create is the upstream API's job). |
 | 4.2 | Destructive operations require an explicit, non-default flag | B | C | N/A (no destructive ops) | Destructive handlers require a non-default flag before acting. |
-| 4.3 | Consequential operations support `--dry-run` | F | C | N/A | Consequential handlers honor `--dry-run`. |
+| 4.3 | Consequential operations support `--dry-run` | F | C | N/A only if no consequential ops exist (else fail) | Consequential handlers honor `--dry-run`. If consequential ops exist without it → fail, not N/A (see Detection methodology). |
 | 4.4 | Mutation responses return the affected identifier(s) | F | C | N/A (no mutations) | Mutation responses include the affected id. |
 
 ### P5. Bounded responses
@@ -64,7 +87,7 @@ one-line reason. Exclude N/A from the score denominator.
 
 | id | Assertion | Sev | Kind | Absence | Detection |
 |----|-----------|-----|------|---------|-----------|
-| 6.1 | Verbs follow universal conventions (`get` not `info`, `list` not `ls`) | B | C | — | Scan command/verb names for banned verbs (`info`,`ls`,`rm`,`new`,`show` where `get`/`list`/`delete`/`create` is conventional). |
+| 6.1 | Verbs follow universal conventions (`get` not `info`, `list` not `ls`) | B | C | — | Scan verb names for banned verbs (`info`,`ls`,`rm`,`new`,`show` where `get`/`list`/`delete`/`create` is conventional). **Downgrade to Friction** when the verb set is internally consistent and matches a documented target convention (`gh`-style `view`; filesystem `ls/cat/cp/mv/rm` on a drive subcommand) — see Detection methodology. |
 | 6.2 | Flags follow conventions (`--force` not `--skip-confirmations`, `--json` not `--format=json`) | B | C | — | Scan flag names for `--skip-*`, `--format=json`, `--no-confirm` aliases. |
 | 6.3 | Naming is internally consistent across subcommands | F | C | — | Compare naming across subcommands for internal drift. |
 | 6.4 | Documented naming policy + mechanical check (CI/lint) enforces vocabulary | T | Ft | FAIL@T | Look for a documented naming policy + a CI/lint check enforcing it. |
@@ -73,7 +96,7 @@ one-line reason. Exclude N/A from the score denominator.
 
 | id | Assertion | Sev | Kind | Absence | Detection |
 |----|-----------|-----|------|---------|-----------|
-| 7.1 | Machine-readable introspection exists (`agent-context`-style command/flag schema) | B | Ft | FAIL@B | Look for a machine introspection command (`agent-context`, `--schema`, `dump-schema`) emitting structured command/flag JSON. |
+| 7.1 | Machine-readable introspection exists (`agent-context`-style command/flag schema) | B | Ft | FAIL@B | Look for a machine introspection command (`agent-context`, `--schema`, `dump-schema`) emitting the actual command/flag *tree* as structured data. A hand-written agent *guide* or output-contract — even one emitted as JSON (e.g. an `agent-guide --json`) — does **not** satisfy 7.1 unless it enumerates the real commands and flags. |
 | 7.2 | The machine introspection is versioned (`schema_version`) | F | C | N/A (7.1 fails) | That output carries a `schema_version`. |
 | 7.3 | A long-form skill manifest (`SKILL.md`-style) teaches workflows | T | Ft | FAIL@T | A long-form `SKILL.md`/skills dir teaches workflows. |
 | 7.4 | Introspection is generated/validated against the real implementation (in sync) | T | Ft | N/A (7.1 fails) | Introspection is generated from / validated against the real command tree (codegen, test). |
@@ -105,6 +128,6 @@ one-line reason. Exclude N/A from the score denominator.
 |----|-----------|-----|------|---------|-----------|
 | 10.1 | A feedback channel exists (`feedback <text>` recorded locally) | B | Ft | FAIL@B | A `feedback <text>` command writing local JSONL. |
 | 10.2 | Feedback can POST upstream when configured, and that's discoverable | F | C | N/A (10.1 fails) | Optional upstream POST gated on a configured endpoint, discoverable. |
-| 10.3 | Artifact-producing commands support `--deliver` (stdout/file/webhook) | F | Ft | N/A (no artifacts produced) | Artifact-producing commands support `--deliver` (stdout/file/webhook). |
+| 10.3 | Artifact-producing commands support `--deliver` (stdout/file/webhook) | F | Ft | N/A (no artifacts produced) | Artifact-producing commands support `--deliver` (stdout/file/webhook). A bare `--output <path>` file sink is partial credit only: if artifacts are produced but there's no scheme abstraction (file/webhook/stdout), that's a **fail@F**, not N/A. N/A only when no command produces a downloadable artifact. |
 | 10.4 | File sinks write atomically; unknown schemes get a structured refusal | F | C | N/A (no `--deliver`) | File sinks write atomically + unknown schemes get a structured refusal. |
 | 10.5 | `--deliver` + `feedback` surfaced in machine introspection | T | C | N/A (depends on 7.1) | Deliver+feedback appear in machine introspection. |
