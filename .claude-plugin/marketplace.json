@@ -1,0 +1,16 @@
+{
+  "name": "powerups-rate-my-cli-dev",
+  "description": "Development marketplace for the rate-my-cli plugin",
+  "owner": {
+    "name": "Nat Torkington",
+    "email": "nat@torkington.com"
+  },
+  "plugins": [
+    {
+      "name": "powerups-rate-my-cli",
+      "description": "Assess and remediate a CLI codebase against agent-native CLI principles — 45 static pass/fail checks across 10 principles, with a conformance-fix loop",
+      "version": "1.0.0",
+      "source": "./"
+    }
+  ]
+}

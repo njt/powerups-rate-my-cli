@@ -1,4 +1,6 @@
-# rate-my-cli
+# powerups-rate-my-cli
+
+> A [Powerup](https://github.com/njt/powerups-marketplace) — a Claude Code plugin.
 
 A Claude Code skill that **statically assesses a CLI codebase** against the 10
 agent-native-CLI principles from Trevin Chow's essay *10 Principles for
@@ -56,12 +58,25 @@ tests/
     badcli-remediate/ # post-remediation copy (loop output)
 ```
 
-## Installing the skill
+## Installing
 
-Make the skill discoverable to Claude Code by placing (or symlinking)
-`skills/rate-my-cli/` where your skills are loaded from — e.g. a plugin's
-`skills/` directory or `~/.claude/skills/rate-my-cli/`. Then invoke it by asking
-Claude to "assess this CLI with rate-my-cli" (or "remediate …").
+Install as a Claude Code plugin from the Powerups marketplace:
+
+```
+/plugin marketplace add njt/powerups-marketplace
+/plugin install powerups-rate-my-cli
+```
+
+Or add this repo directly as its own single-plugin marketplace:
+
+```
+/plugin marketplace add njt/powerups-rate-my-cli
+/plugin install powerups-rate-my-cli
+```
+
+Then invoke it by asking Claude to "assess this CLI with rate-my-cli" (or
+"remediate this CLI"). The `skills/`, and nothing else, is what Claude loads as a
+capability; `tests/`, `docs/`, and the essay ride along as reference.
 
 ## Running the validation
 
