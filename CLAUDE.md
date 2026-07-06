@@ -1,17 +1,25 @@
 # powerups-rate-my-cli
 
 A Claude Code plugin (a [Powerup](https://github.com/njt/powerups-marketplace))
-that **statically assesses a CLI codebase** against the 10 agent-native-CLI
-principles from Trevin Chow's essay (`trevin-essay.md`), and can drive a
-**conformance-fix loop**. This repo is both the source tree and the installable
-plugin — pushing to `origin/main` publishes it.
+that **statically assesses a CLI codebase** for agent-nativeness — **inspired by**
+Trevin Chow's essay (`trevin-essay.md`) and extended beyond it from real use —
+and can drive a **conformance-fix loop** and an opt-in live `validate` phase. This
+repo is both the source tree and the installable plugin — pushing to `origin/main`
+publishes it.
+
+**Provenance discipline:** keep the article-vs-ours distinction honest. The 10
+principles + Blocker/Friction/Target framing are the essay's; the check
+decomposition, kind/absence model, detection methodology, checks 2.7/7.5, and the
+`validate` phase are ours (see README "Provenance" and spec Appendices B/C). Frame
+new work as *inspired by / extending* the essay, never as *implementing* it.
 
 The user-facing overview is `README.md`. This file is for working *on* the repo.
 
 ## The model (don't break these axes)
 
-- **The unit of work is a check** — a single pass/fail assertion derived from the
-  essay. There are **45** of them (`P1–P5 = 23`, `P6–P10 = 22`).
+- **The unit of work is a check** — a single pass/fail assertion. The essay seeds
+  most; 2.7 and 7.5 we added from real use. There are **47** (`P1–P5 = 24`,
+  `P6–P10 = 23`).
 - **Two independent axes per check:**
   - **Severity** = *how bad* (Blocker / Friction / Target), from the essay's
     per-principle ladder.
@@ -38,23 +46,23 @@ The user-facing overview is `README.md`. This file is for working *on* the repo.
    `rubric.md` additionally carries a **Detection** column and a **Detection
    methodology** preamble (hard-won from real-CLI runs: *declared ≠ honored*,
    *absence-vs-fail*, *idiomatic verb sets*) — don't lose those lessons.
-2. **The count is 45.** If you add/remove a check, update: the count in
+2. **The count is 47.** If you add/remove a check, update: the count in
    `rubric.md`, spec Appendix A totals, and the `description` in
-   `skills/rate-my-cli/SKILL.md` frontmatter ("45 checks").
+   `skills/rate-my-cli/SKILL.md` frontmatter ("47 checks").
 3. **Only `skills/` loads as a capability.** `tests/`, `docs/`, `trevin-essay.md`
    ride along in the clone but aren't loaded by Claude Code.
 
 ## Layout
 
 ```
-skills/rate-my-cli/     SKILL.md (orchestration), rubric.md (45 checks), report-template.md
+skills/rate-my-cli/     SKILL.md (orchestration), rubric.md (47 checks), report-template.md
 docs/superpowers/       specs/ (design; Appendix A = rubric master, Appendix B = hardening),
                         plans/ (implementation plan)
 tests/fixtures/         synthetic CLIs, each with EXPECTED.md + a golden SCORECARD.md
 tests/real-runs/        scorecards from real CLIs (azdo, go365)
 tests/VERIFY.md         how to run the e2e validation
 .claude-plugin/         plugin.json + dev marketplace.json
-trevin-essay.md         the source principles
+trevin-essay.md         the inspiring essay (kept for reference)
 ```
 
 ## Developing & validating

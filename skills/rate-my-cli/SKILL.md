@@ -1,6 +1,6 @@
 ---
 name: rate-my-cli
-description: Use when asked to assess, rate, audit, or remediate a CLI codebase against agent-native CLI principles (Trevin Chow's 10 principles). Statically scores 47 pass/fail checks across 10 principles, drives a conformance-fix loop, and can optionally confirm the result live. Assessment/remediation are static and read-only by default; the live `validate` phase is opt-in (read-only against any account; mutations only against an explicit throwaway sandbox).
+description: Use when asked to assess, rate, audit, or remediate a CLI codebase against agent-native CLI principles (inspired by Trevin Chow's 10 principles, extended from real-world use). Statically scores 47 pass/fail checks across 10 principles, drives a conformance-fix loop, and can optionally confirm the result live. Assessment/remediation are static and read-only by default; the live `validate` phase is opt-in (read-only against any account; mutations only against an explicit throwaway sandbox).
 ---
 
 # rate-my-cli

@@ -2,17 +2,20 @@
 
 **Date:** 2026-06-25
 **Author:** Nat (with Claude)
-**Source material:** `trevin-essay.md` — *10 Principles for Agent-Native CLIs* (Trevin Chow, 2026-05-05)
+**Inspired by:** `trevin-essay.md` — *10 Principles for Agent-Native CLIs* (Trevin Chow, 2026-05-05). This project takes its *direction* from the essay and extends well beyond it; see Appendices B and C for what real-world use added.
 
 ---
 
 ## 1. Purpose
 
-A Claude Code skill that assesses a CLI codebase against the 10 principles in
-Trevin Chow's essay and, in its primary mode, drives a fix loop that closes the
-gaps it finds. The essay already carries most of the structure we need: each
-principle ships a `What good looks like` sentence-list (→ concrete checks) and a
-Blocker / Friction / Target ladder (→ severity).
+A Claude Code skill that assesses a CLI codebase for how well it serves AI agents
+— **inspired by** the 10 principles in Trevin Chow's essay — and, in its primary
+mode, drives a fix loop that closes the gaps it finds. The essay provides the
+*direction*: each principle ships a `What good looks like` sentence-list (which we
+decompose into concrete checks) and a Blocker / Friction / Target ladder (→
+severity). The mechanical scoring, the kind/absence model, the detection
+methodology, two added checks (2.7, 7.5), and the live `validate` phase are our
+own, developed by applying the rubric to real projects (Appendices B, C).
 
 The unit of work is a **check**: a single pass/fail assertion derived from the
 essay, carrying an intrinsic severity and an explicit rule for what "the thing

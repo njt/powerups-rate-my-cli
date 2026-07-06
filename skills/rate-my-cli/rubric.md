@@ -1,5 +1,11 @@
 # rate-my-cli rubric
 
+> **Provenance:** the 10 principles and the Blocker/Friction/Target framing are
+> *inspired by* Trevin Chow's essay. The check decomposition, the Kind/Absence
+> model, the Detection methodology, and any check marked *(from real-world use)*
+> (2.7, 7.5) are our own — hardened by applying this rubric to real CLIs and
+> remediating one end-to-end.
+
 Severity: **B**=Blocker, **F**=Friction, **T**=Target.
 Kind: **C**=conformance (localized edit → auto-fixable), **Ft**=feature (subsystem → propose-only).
 Absence: resolution when the thing a check looks for is absent — PASS, N/A, or FAIL@severity.

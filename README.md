@@ -2,10 +2,13 @@
 
 > A [Powerup](https://github.com/njt/powerups-marketplace) — a Claude Code plugin.
 
-A Claude Code skill that **statically assesses a CLI codebase** against the 10
-agent-native-CLI principles from Trevin Chow's essay *10 Principles for
-Agent-Native CLIs*, drives a **conformance-fix loop**, and can optionally
-**validate the result live** (because passing the rubric ≠ actually working).
+A Claude Code skill that **statically assesses a CLI codebase** for how well it
+serves AI agents — **inspired by** Trevin Chow's essay *10 Principles for
+Agent-Native CLIs*, and extended well beyond it from applying the rubric to real
+projects. It turns the essay's prose into mechanically-scored checks, drives a
+**conformance-fix loop**, and can optionally **validate the result live**
+(because passing the rubric ≠ actually working). See [Provenance](#provenance)
+for what comes from the article versus what we added.
 
 It scores **47 pass/fail checks** across the 10 principles, maps each gap onto a
 Blocker / Friction / Target severity, and tags each as `conformance` (a localized
@@ -103,8 +106,32 @@ of the design spec.
 The fixtures are tiny single-file Python CLIs; the read-only sanity checks need
 only `python3` and `jq`.
 
-## Source
+## Provenance
 
-The principles are from Trevin Chow's essay (`trevin-essay.md` in this repo). The
-rubric's authoritative master is **Appendix A** of the design spec; if you change
-a severity/kind/absence value there, update `rubric.md` too so they don't drift.
+This project was **inspired by** Trevin Chow's essay *10 Principles for
+Agent-Native CLIs* (`trevin-essay.md` in this repo) — it is not a literal
+implementation of it. Credit for the direction is his; the operational machinery,
+and the lessons from taking real CLIs from "passes the rubric" to "confirmed
+working," are ours.
+
+**From the essay:**
+- the **10 principles** and their two tiers (Table Stakes / Compounding);
+- the **Blocker / Friction / Target** severity framing;
+- the prose "what good looks like" targets that seed each check.
+
+**Our additions** (developed by applying the rubric to real CLIs — azdo, go365,
+msgvault, agentsview, kata, serf, and a full remediation of `cu`):
+- turning that prose into **discrete, mechanically-scored checks** (47 of them);
+- the **`kind`** axis (conformance vs feature) and the **absence-resolution**
+  model (PASS / N-A / FAIL);
+- the **detection methodology** hardened from real runs (declared≠honored,
+  idiomatic verbs, and *static ≠ runtime correctness*);
+- checks **2.7** (no secret leak) and **7.5** (version reporting), added from
+  real-world use and marked *(from real-world use)* in the rubric;
+- the **assess / remediate / validate** workflow — including the live-validation
+  phase the essay doesn't cover, which is where the hardest bugs actually surface.
+
+The rubric's authoritative master is **Appendix A** of the design spec (essay-
+derived); **Appendices B and C** record what real use added. If you change a
+severity/kind/absence value in Appendix A, update `rubric.md` too so they don't
+drift.
