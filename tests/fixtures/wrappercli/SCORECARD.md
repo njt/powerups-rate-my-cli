@@ -2,8 +2,8 @@
 
 **Target:** tests/fixtures/wrappercli/wrappercli.py
 **Date:** 2026-06-26
-**Score:** 16 / 22 applicable checks (73%)
-**Failing gaps:** 2 Blocker · 1 Friction · 3 Target
+**Score:** 17 / 24 applicable checks (71%)
+**Failing gaps:** 2 Blocker · 2 Friction · 3 Target
 
 > ⚠️ **Suspicious N/A warning:** Principles **P8** (Async-aware execution) and **P9** (Persistent identity through profiles) returned **entirely N/A**. P8 is N/A because the wrapper submits no async jobs. P9 is N/A because the only persistent state is auth (`UPSTREAM_TOKEN` via env) and there is no recurring non-auth config bundle — confirm this is genuinely a thin per-call wrapper and not a missed profile surface.
 
@@ -29,6 +29,7 @@
 | 2.4 Exit codes: 0 success, non-zero failure, stable taxonomy | pass | — | C | Auth failure exits `2` (wrappercli.py:11); argparse exits non-zero on parse errors; success path exits 0. Not always-0-on-failure. |
 | 2.5 Data → stdout, diagnostics/errors → stderr | pass | — | C | Data via `print(...)` → stdout; auth error → `file=sys.stderr` (wrappercli.py:9). |
 | 2.6 ANSI/color suppressed when output isn't a terminal | pass | — | C | Pass by absence: no color libs / ANSI escapes emitted. |
+| 2.7 Structured output never emits raw secrets (tokens/JWTs/passwords) | pass | — | C | JSON payloads carry only `id`/`title`/`items`/`truncated` (wrappercli.py:14,17); `UPSTREAM_TOKEN` stays in the env and is never placed into a `json.dumps` field — no `*token*`/`*jwt*`/`*secret*`/`*password*`/`*key*` field reaches the encoder. |
 
 ### P3. Errors that teach, and enumerate
 
@@ -74,6 +75,7 @@
 | 7.2 Machine introspection is versioned (`schema_version`) | na | — | C | N/A: 7.1 fails (no machine introspection). |
 | 7.3 Long-form skill manifest teaches workflows | fail | T | Ft | No `SKILL.md`/skills dir teaching workflows for this CLI. |
 | 7.4 Introspection generated/validated against real implementation | na | — | Ft | N/A: 7.1 fails (no introspection to keep in sync). |
+| 7.5 A `version` command reports the build (version + commit/date) | fail | F | Ft | No `version` command / `--version` surface; only `get`/`list` are registered (wrappercli.py:22-23) ⇒ absent ⇒ FAIL@F. |
 
 ### P8. Async-aware execution
 
@@ -118,3 +120,4 @@
 - 5.2 (Target) — Add filtering + cursor/page pagination to `list`; requires your go-ahead.
 - 6.4 (Target) — Add a documented naming policy plus a CI/lint check enforcing the vocabulary; requires your go-ahead.
 - 7.3 (Target) — Author a long-form `SKILL.md` teaching agent workflows for this CLI; requires your go-ahead.
+- 7.5 (Friction) — Add a `version` command reporting the release version + VCS commit/build date so an agent can detect a stale binary; requires your go-ahead.

@@ -10,11 +10,13 @@ Key failing checks the assessor MUST report (verdict: fail):
 - 4.4 fail F C — `delete` returns no id
 - 5.1 fail B C — `ls` dumps 100 rows, no default limit
 - 6.1 fail B C — verbs `info` (→get) and `ls` (→list)
+- 7.5 fail F Ft — no `version` command (feature → proposal, not auto-fixed)
 
 Expected N/A (with reason):
 - P8 all — no async API wrapped
 - P9 9.1 — no recurring non-auth config (no profiles needed)
 - 5.4 — no MCP wrapper
+- 2.7 — no `--json` at all (no structured output that could leak secrets)
 
 Expected pass-by-absence:
 - 1.4 — no interactive menus

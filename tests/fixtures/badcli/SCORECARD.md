@@ -2,8 +2,8 @@
 
 **Target:** tests/fixtures/badcli/badcli.py
 **Date:** 2026-06-26
-**Score:** 6 / 24 applicable checks (25%)
-**Failing gaps:** 9 Blocker · 7 Friction · 2 Target
+**Score:** 6 / 25 applicable checks (24%)
+**Failing gaps:** 9 Blocker · 8 Friction · 2 Target
 **Suspicious N/A warning:** Principles P8 (Async-aware execution) and P9 (Persistent identity through profiles) returned entirely N/A — verify these subsystems are genuinely absent rather than missed.
 
 ## Per-principle results
@@ -28,6 +28,7 @@
 | 2.4 Exit codes: 0 success, non-zero failure, stable taxonomy | fail | B | C | badcli.py:21 `sys.exit(0)` on the invalid-visibility failure path |
 | 2.5 Data → stdout, diagnostics/errors → stderr | fail | F | C | badcli.py:20 error printed to stdout (`print(...)`), not stderr |
 | 2.6 ANSI/color suppressed when output isn't a terminal | pass | | C | No color libs / ANSI escapes used — nothing to suppress, pass by absence |
+| 2.7 Structured output never emits raw secrets (tokens/JWTs/passwords) | na | | C | No `--json`/structured-output path exists at all (badcli.py all `print()`) ⇒ no encoder that could leak a secret ⇒ N/A |
 
 ### P3. Errors that teach, and enumerate
 
@@ -73,6 +74,7 @@
 | 7.2 The machine introspection is versioned | na | | C | 7.1 fails ⇒ N/A |
 | 7.3 A long-form skill manifest teaches workflows | fail | T | Ft | No SKILL.md/skills dir for the target CLI ⇒ FAIL@T |
 | 7.4 Introspection is generated/validated against the real implementation | na | | Ft | 7.1 fails ⇒ N/A |
+| 7.5 A `version` command reports the build (version + commit/date) | fail | F | Ft | No `version` command/`--version` surface; argparse defines none (badcli.py:24-31) ⇒ absent ⇒ FAIL@F |
 
 ### P8. Async-aware execution
 
@@ -128,3 +130,4 @@
 - 5.2 — Add filtering + pagination/cursor to `list`; requires your go-ahead.
 - 6.4 — Document a naming policy and add a CI/lint check enforcing the vocabulary; requires your go-ahead.
 - 7.3 — Author a long-form SKILL.md manifest teaching workflows; requires your go-ahead.
+- 7.5 — Add a `version` command reporting the release version + VCS commit/build date so an agent can detect a stale binary; requires your go-ahead.

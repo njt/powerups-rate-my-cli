@@ -2,8 +2,8 @@
 
 **Target:** tests/fixtures/goodcli/goodcli.py
 **Date:** 2026-06-26
-**Score:** 24 / 28 applicable checks (86%)
-**Failing gaps:** 2 Blocker · 0 Friction · 2 Target
+**Score:** 25 / 30 applicable checks (83%)
+**Failing gaps:** 2 Blocker · 1 Friction · 2 Target
 > ⚠️ Suspicious N/A: principles **P8** (async-aware execution) and **P9** (profiles) returned entirely N/A. Confirm the CLI genuinely wraps no async API and has no recurring non-auth config bundle.
 
 ## Per-principle results
@@ -28,6 +28,7 @@
 | 2.4 Exit codes: 0 success, non-zero failure, stable taxonomy | pass | — | C | `sys.exit(4)` enum reject, `sys.exit(3)` missing force; 0 on success (goodcli.py:17,22). |
 | 2.5 Data → stdout, diagnostics/errors → stderr | pass | — | C | Data via `print(json.dumps(...))`; errors via `file=sys.stderr` (goodcli.py:16,21). |
 | 2.6 ANSI/color suppressed when output isn't a terminal | pass | — | C | No color libs / ANSI escapes used; nothing to suppress. |
+| 2.7 Structured output never emits raw secrets (tokens/JWTs/passwords) | pass | — | C | JSON payloads carry only `id`/`visibility`/`posts`/`truncated`/`hint`/`existing`/`deleted`/`would_delete` (goodcli.py:8,12,18,24-25); no `*token*`/`*jwt*`/`*secret*`/`*password*`/`*key*` field reaches `json.dumps`. |
 
 ### P3. Errors that teach, and enumerate
 
@@ -73,6 +74,7 @@
 | 7.2 Machine introspection is versioned (`schema_version`) | na | — | C | 7.1 fails (no introspection surface) ⇒ N/A. |
 | 7.3 Long-form skill manifest (`SKILL.md`-style) teaches workflows | fail | T | Ft | No `SKILL.md`/skills dir for the target CLI; absence ⇒ FAIL@T. |
 | 7.4 Introspection generated/validated against implementation | na | — | Ft | 7.1 fails (no introspection) ⇒ N/A. |
+| 7.5 A `version` command reports the build (version + commit/date) | fail | F | Ft | No `version` command / `--version` surface; only `get`/`list`/`create`/`delete` are registered (goodcli.py:30-33) ⇒ absent ⇒ FAIL@F. |
 
 ### P8. Async-aware execution
 
@@ -116,3 +118,4 @@
 - 10.1 (Blocker) — Add a `feedback <text>` command that records feedback locally as JSONL (optionally POST upstream when an endpoint is configured). Subsystem work; requires your go-ahead.
 - 6.4 (Target) — Document a naming policy and add a mechanical CI/lint check that enforces the verb/flag vocabulary. Requires your go-ahead.
 - 7.3 (Target) — Author a long-form `SKILL.md`-style manifest teaching agent workflows for this CLI. Requires your go-ahead.
+- 7.5 (Friction) — Add a `version` command reporting the release version + VCS commit/build date (ldflags / `debug.ReadBuildInfo`) so an agent can detect a stale binary. Requires your go-ahead.

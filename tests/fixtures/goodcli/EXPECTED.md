@@ -7,5 +7,7 @@ Mostly passes on Tier 1. Remaining gaps are Tier-2 features.
 - 4.2 pass (--force required) · 4.3 pass (--dry-run) · 4.4 pass (id returned)
 - 5.1 pass (default limit) · 5.3 pass (truncated + hint)
 - 6.1 pass · 6.2 pass
+- 2.7 pass — JSON output carries no token/jwt/secret/password/key fields to leak
 - 7.1 fail B Ft — no agent-context (feature → proposal, not auto-fixed)
+- 7.5 fail F Ft — no `version` command (feature → proposal, not auto-fixed)
 - 9.1 na — no recurring non-auth config; 10.1 fail B Ft — no feedback channel (feature)
