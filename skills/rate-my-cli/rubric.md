@@ -10,7 +10,8 @@ one-line reason. Exclude N/A from the score denominator.
 
 ## Detection methodology (read before evaluating)
 
-Hardened by running this rubric against real Go/cobra CLIs (azdo, go365):
+Hardened by running this rubric against real Go/cobra CLIs (azdo, go365), and by
+fully remediating one (cu) — including running it against a live workspace:
 
 - **Declared ≠ honored.** A flag being *declared* — especially a framework-global
   or persistent root flag (cobra `PersistentFlags`, click groups, etc.) — does
@@ -30,6 +31,20 @@ Hardened by running this rubric against real Go/cobra CLIs (azdo, go365):
   matches a documented target convention — `gh`-style `view`, or filesystem
   `ls/cat/cp/mv/rm` on a drive/file subcommand — is a low-severity **Friction**
   (fix: alias the canonical verb), not a Blocker.
+- **Static ≠ runtime correctness.** The static rubric finds *missing capabilities*
+  well, but whole classes of *bugs* only surface by actually running the CLI —
+  every one of these passed static analysis and unit tests on cu:
+  - **Response-parse fragility:** a field typed `string` that the API returns as a
+    *number* crashes the command (cu's `comment add` on numeric `id`/`date`;
+    `docs pages list` on a bare-array response).
+  - **Lossy pagination:** a `--cursor` that advances by API page while `-n` shows
+    fewer items *skips* the rest (cu lost ~95% at `-n 5`); and `truncated: false`
+    emitted alongside a `next_cursor` (the "nothing exists past page 1" trap).
+  - **Secret leakage:** `--json` emitting a full credential the human path redacts
+    (cu dumped a live session JWT).
+  Treat these as **runtime risks** flagged during static assessment and *confirmed*
+  in the opt-in **validate** phase (live read-only e2e + sandbox-gated mutations —
+  see SKILL.md). Static assessment is necessary but not sufficient.
 
 ## Tier 1 — Table Stakes
 
@@ -48,11 +63,12 @@ Hardened by running this rubric against real Go/cobra CLIs (azdo, go365):
 | id | Assertion | Sev | Kind | Absence | Detection |
 |----|-----------|-----|------|---------|-----------|
 | 2.1 | The CLI supports structured (JSON) output | B | C | FAIL@B | Grep for a `--json`/`json.dumps`/`JSON.stringify` path on any data command. |
-| 2.2 | Every data-returning command supports `--json` (coverage) | F | C | N/A (none support it ⇒ 2.1 fails) | Count data commands vs those that actually emit JSON in the handler. A persistent/root `--json` counts only for handlers that read it — verify per handler, don't pass the whole CLI off one declaration (see Detection methodology). |
+| 2.2 | Every data-returning command supports `--json` (coverage) | F | C | N/A (none support it ⇒ 2.1 fails) | Count data commands vs those that actually emit JSON in the handler. A persistent/root `--json` counts only for handlers that read it — verify per handler, don't pass the whole CLI off one declaration (see Detection methodology). Coverage includes **mutations** (`create`/`update`/`delete`), not just reads — a `delete` with no `--json` is a gap (cu shipped exactly this). |
 | 2.3 | One consistent flag name (`--json`, not mixed `--format`/`--output`) | F | C | N/A | Grep flag names: fail if `--format`/`--output`/`-o json` coexist with `--json`. |
 | 2.4 | Exit codes: 0 success, non-zero failure, stable taxonomy | F | C | FAIL@B if always 0 on failure | Inspect exit paths (`sys.exit`/`os.Exit`/`process.exit`): fail@B if all exits are 0 even on failure. |
 | 2.5 | Data → stdout, diagnostics/errors → stderr | F | C | — | Data prints to stdout and errors/logs to stderr (`sys.stderr`, `console.error`, `fmt.Fprintln(os.Stderr,...)`). |
 | 2.6 | ANSI/color suppressed when output isn't a terminal | F | C | — | Color libs (`colorama`, `chalk`, ANSI escapes) guarded by isatty/`NO_COLOR`. |
+| 2.7 | Structured output never emits raw secrets (tokens/JWTs/passwords) | B | C | N/A (no `--json`, or no secret-bearing fields) | *(from real-world use)* Any field whose name matches `*token*`/`*jwt*`/`*secret*`/`*password*`/`*key*` reaching a JSON encoder must be masked or omitted — matching, not undercutting, the human path's redaction. A value the human output truncates but `--json` dumps in full is a **Blocker**; confirm in the validate phase (cu leaked a live session JWT this way). |
 
 ### P3. Errors that teach, and enumerate
 
@@ -77,8 +93,8 @@ Hardened by running this rubric against real Go/cobra CLIs (azdo, go365):
 | id | Assertion | Sev | Kind | Absence | Detection |
 |----|-----------|-----|------|---------|-----------|
 | 5.1 | List-style commands have a bounded default (limit/page size) | B | C | N/A (no list commands) | List handlers apply a default limit/page size. |
-| 5.2 | List commands support filtering and pagination/cursor | F | Ft | N/A | List handlers accept filter + cursor/page. |
-| 5.3 | Truncated output signals truncation and hints how to narrow | F | C | N/A | Truncated responses set a `truncated` flag + narrowing hint. |
+| 5.2 | List commands support filtering and pagination/cursor | F | Ft | N/A | List handlers accept filter + cursor/page. **Pagination must be lossless**: paging with any `-n` visits every item exactly once (no skips/dupes) — a `--cursor` that advances by API page while `-n` is smaller silently drops the rest (cu lost ~95% at `-n 5`). Not statically provable — flag as a runtime risk for the validate phase. |
+| 5.3 | Truncated output signals truncation and hints how to narrow | F | C | N/A | Truncated responses set a `truncated` flag + narrowing hint. `truncated` must be **consistent with continuation**: whenever a `next_cursor` or further page exists, `truncated` must be `true` — emitting `truncated:false` beside a `next_cursor` is the "nothing exists past page 1" trap (cu shipped exactly this). |
 | 5.4 | MCP wrapper: each tool description fits a small audited token budget | T | C | N/A (no MCP wrapper) | If an MCP server/tool-description surface exists, each description is short and budget-audited (else N/A). |
 
 ## Tier 2 — Compounding
@@ -100,8 +116,7 @@ Hardened by running this rubric against real Go/cobra CLIs (azdo, go365):
 | 7.2 | The machine introspection is versioned (`schema_version`) | F | C | N/A (7.1 fails) | That output carries a `schema_version`. |
 | 7.3 | A long-form skill manifest (`SKILL.md`-style) teaches workflows | T | Ft | FAIL@T | A long-form `SKILL.md`/skills dir teaches workflows. |
 | 7.4 | Introspection is generated/validated against the real implementation (in sync) | T | Ft | N/A (7.1 fails) | Introspection is generated from / validated against the real command tree (codegen, test). |
-
-(Note: `--help` for humans is assumed present; its absence falls out of 7.1's "only `--help`, nothing structured" Blocker framing.)
+| 7.5 | A `version` command reports the build (version + commit/date) | F | Ft | FAIL@F | *(from real-world use)* A `version`-style command emitting the release version and, ideally, the VCS commit + build date (via ldflags or `debug.ReadBuildInfo`), so an agent can tell whether it's driving a **stale** binary. cu had shipped a 4-month-old build with no way to know. Absent ⇒ fail@F. |
 
 ### P8. Async-aware execution — *entire principle N/A if the CLI wraps no async API*
 

@@ -197,6 +197,7 @@ Absence column = resolution when the thing the check looks for is absent.
 | 2.4 | Exit codes: 0 success, non-zero failure, stable taxonomy | F | C | FAIL@B if always 0 on failure |
 | 2.5 | Data → stdout, diagnostics/errors → stderr | F | C | — |
 | 2.6 | ANSI/color suppressed when output isn't a terminal | F | C | — |
+| 2.7 | Structured output never emits raw secrets (tokens/JWTs/passwords) | B | C | N/A (no `--json`, or no secret-bearing fields) |
 
 **P3. Errors that teach, and enumerate**
 
@@ -244,6 +245,7 @@ Absence column = resolution when the thing the check looks for is absent.
 | 7.2 | The machine introspection is versioned (`schema_version`) | F | C | N/A (7.1 fails) |
 | 7.3 | A long-form skill manifest (`SKILL.md`-style) teaches workflows | T | Ft | FAIL@T |
 | 7.4 | Introspection is generated/validated against the real implementation (in sync) | T | Ft | N/A (7.1 fails) |
+| 7.5 | A `version` command reports the build (version + commit/date) | F | Ft | FAIL@F |
 
 (Note: `--help` for humans is assumed present; its absence falls out of 7.1's "only `--help`, nothing structured" Blocker framing.)
 
@@ -276,7 +278,8 @@ Absence column = resolution when the thing the check looks for is absent.
 | 10.4 | File sinks write atomically; unknown schemes get a structured refusal | F | C | N/A (no `--deliver`) |
 | 10.5 | `--deliver` + `feedback` surfaced in machine introspection | T | C | N/A (depends on 7.1) |
 
-**Totals:** 10 principles, 45 checks (P1–P5 = 23, P6–P10 = 22; ≈ 4–5 per principle).
+**Totals:** 10 principles, 47 checks (P1–P5 = 24, P6–P10 = 23; ≈ 4–5 per principle).
+Checks 2.7 and 7.5 were added from real-world use (see Appendix C).
 
 ---
 
@@ -308,3 +311,41 @@ preamble):
   emits a downloadable artifact.
 
 Validation scorecards for both CLIs are committed under `tests/real-runs/`.
+
+---
+
+## Appendix C — Learnings from remediating a CLI for real (2026-07-07)
+
+`cu` was assessed (50%), fully remediated (→97%), and — crucially — **run against a
+live workspace**. That last step, which static assessment deliberately avoids,
+surfaced six real bugs that the rubric *and* unit tests all passed:
+
+1. `--json` on `status`/`config` leaked a full session JWT (human path redacted it).
+2. `task list --json` emitted `truncated:false` next to a `next_cursor`.
+3. Cursor pagination skipped ~95% of items when `-n` < the API page size.
+4. `docs pages list` crashed on a bare-array response (parser expected `{pages}`).
+5. `comment add` crashed parsing numeric `id`/`date` (struct typed them `string`).
+6. `task delete` had no `--json` while every other mutation did.
+
+The generalizable lesson: **static assessment is necessary but not sufficient.**
+It scores *missing capabilities* well; it cannot prove *runtime correctness*.
+
+**Rubric changes (this round):**
+- **New check 2.7** — structured output must never emit raw secrets (Blocker).
+- **New check 7.5** — a `version` command reports the build so agents detect a
+  stale binary (Friction). cu had shipped a 4-month-old install with no `version`.
+- **Sharpened detection** — 2.2 coverage includes mutations (`delete`); 5.2
+  pagination must be *lossless*; 5.3 `truncated` must be consistent with any
+  `next_cursor`.
+- **New Detection-methodology bullet** — "Static ≠ runtime correctness," naming
+  the three runtime bug classes (parse fragility, lossy pagination, secret leak).
+
+**New skill phase — `validate` (opt-in, runs the CLI):** after remediation,
+confirm the CLI actually works. Reads may run against any authed account;
+mutations run only against an explicit throwaway **sandbox** (never production),
+with guaranteed cleanup and a residue check. Deliverable: a build-tagged live e2e
+suite asserting invariants (smoke, envelope, lossless pagination, no secret leak,
+safety refusals, and a sandbox create→edit→delete lifecycle) — left in the repo
+as a repeatable gate. Auth freshness is handled by a `… auth refresh`-style
+command (add one if missing). This is what took cu from "passes the rubric" to
+"confirmed working."

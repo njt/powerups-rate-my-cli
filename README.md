@@ -4,9 +4,10 @@
 
 A Claude Code skill that **statically assesses a CLI codebase** against the 10
 agent-native-CLI principles from Trevin Chow's essay *10 Principles for
-Agent-Native CLIs*, and can drive a **conformance-fix loop**.
+Agent-Native CLIs*, drives a **conformance-fix loop**, and can optionally
+**validate the result live** (because passing the rubric ≠ actually working).
 
-It scores **45 pass/fail checks** across the 10 principles, maps each gap onto a
+It scores **47 pass/fail checks** across the 10 principles, maps each gap onto a
 Blocker / Friction / Target severity, and tags each as `conformance` (a localized
 edit) or `feature` (a whole subsystem). The output is a `SCORECARD.md` with
 `file:line` evidence and a prioritized remediation plan.
@@ -23,6 +24,11 @@ edit) or `feature` (a whole subsystem). The output is a `SCORECARD.md` with
 - **Features are never auto-built.** The remediate loop gates on *kind*: it
   auto-fixes `conformance` gaps and only *proposes* `feature` gaps (profile
   systems, async ledgers, `agent-context`, `feedback`, `--deliver`).
+- **`validate` is opt-in and runs the CLI.** Static assessment is necessary but
+  not sufficient — see Appendix C of the design spec, where remediating one CLI
+  (`cu`) live surfaced six real bugs the rubric and unit tests all passed. Reads
+  may run against any authed account; **mutations run only against an explicit
+  throwaway sandbox**, never production.
 
 ## Modes
 
@@ -30,6 +36,7 @@ edit) or `feature` (a whole subsystem). The output is a `SCORECARD.md` with
 |------|--------------|
 | `assess` (default) | Recon the CLI once → fan out one read-only evaluator per principle → synthesize `SCORECARD.md` with score (excluding N/A), evidence, and a grouped remediation plan. |
 | `remediate` | Loop: assess → auto-fix failing `conformance` checks (Blockers first, one commit each) → verify with read-only commands → re-assess → repeat until no conformance gaps remain → present `feature` gaps as proposals. |
+| `validate` (opt-in) | Runs the remediated CLI live to catch bugs static analysis can't — parse fragility, lossy pagination, secret-leaking `--json`. Reads run against any authed account; mutations run **only** against an explicit throwaway sandbox, with cleanup. Leaves a build-tagged e2e suite in the repo. |
 
 A check whose target capability is absent resolves to **PASS** (the failure mode
 can't occur), **N/A** (an optional capability legitimately missing — excluded
@@ -42,7 +49,7 @@ raises a suspicious-N/A warning.
 ```
 skills/rate-my-cli/
   SKILL.md            # orchestration: modes, recon/fan-out/synthesize, the loop
-  rubric.md           # the 45 checks: id, assertion, severity, kind, absence, detection
+  rubric.md           # the 47 checks: id, assertion, severity, kind, absence, detection
   report-template.md  # SCORECARD.md skeleton
 
 docs/superpowers/
