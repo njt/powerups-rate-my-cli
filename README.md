@@ -56,6 +56,7 @@ tests/
     wrappercli/       # thin upstream-API wrapper → P8 & P9 score N/A
     goodcli/          # conformant baseline → feature gaps routed to proposals
     badcli-remediate/ # post-remediation copy (loop output)
+  real-runs/          # scorecards from real-world CLIs (azdo, go365)
 ```
 
 ## Installing
@@ -86,6 +87,11 @@ per-check verdicts; the skill is run in `assess` mode against the fixture and it
 files are golden references — `badcli` reproduced all expected failures,
 `wrappercli` correctly scored P8/P9 as N/A (not Blocker), and `goodcli` passed
 Tier 1 with its two feature gaps routed to proposals.
+
+`tests/real-runs/` holds scorecards from running the assessor against real-world
+Go/cobra CLIs (`azdo`, `go365`). Those runs also hardened the rubric's detection
+methodology — see the preamble in `skills/rate-my-cli/rubric.md` and Appendix B
+of the design spec.
 
 The fixtures are tiny single-file Python CLIs; the read-only sanity checks need
 only `python3` and `jq`.
