@@ -5,9 +5,9 @@
 **Date:** 2026-07-07
 **Rubric:** current hardened 47-check rubric (adds 2.7, 7.5; sharpened 2.2 / 5.2 / 5.3; "static ≠ runtime" methodology)
 **Mode:** assess (static, read-only — `go build` + `--help` only; no Microsoft Graph operation run)
-**Score:** 29 / 34 applicable checks (85%)
-**Failing gaps:** 2 Blocker · 2 Friction · 1 Target
-**Delta vs prior assess (22 / 33, 4B·6F·1T):** numerator 22→29 (+7); denominator 33→34 (1.5 flips N/A→pass, now applicable); % 67→85 (+18pp). **Six conformance checks flipped fail→pass** (4.2, 6.1 Blockers; 1.3, 2.2, 3.3, 6.3 Friction) plus 1.5. Two Blockers persist (7.1, 10.1 — both *feature* Kind, untouched). One conformance gap remains (4.3, partial). Build + `--help` verified working.
+**Score:** 30 / 34 applicable checks (88%)
+**Failing gaps:** 2 Blocker · 1 Friction · 1 Target
+**Delta vs prior assess (22 / 33, 4B·6F·1T):** numerator 22→30 (+8); denominator 33→34; % 67→88 (+21pp). **Seven conformance checks flipped fail→pass** (4.2, 6.1 Blockers; 1.3, 2.2, 3.3, 4.3, 6.3 Friction) plus 1.5, and the `calendar respond` exit-0 bug fixed. **All conformance gaps are now closed** — the two remaining Blockers (7.1, 10.1) and the rest (10.3, 6.4) are *feature* proposals. Build + `--help` verified working.
 
 > ⚠️ **Whole-principle N/A:** P8 (Async-aware execution) is entirely N/A — go365 is a synchronous Graph wrapper with no async/job-submitting command (P8's own documented escape clause). No other principle is wholly N/A.
 
@@ -17,7 +17,7 @@
 |-------|---------|----------|
 | calendar respond exits non-zero on failure | **cleared** | `main.go:1196-1198` returns `fmt.Errorf("%d of %d responses failed", …)` when `failures>0` (was `return nil`). Resolves the 2.4 caveat. |
 | `--json` on calendar respond/cancel/delete (2.2) | **cleared** | flags at `1821`, `1827`, `1834`; handlers `WriteJSON` a `{results,failures}` envelope (`1188-1195`, `1280-1287`, and delete's equivalent). |
-| `--force` + `--dry-run` on the 5 destructive ops (4.2/1.3/4.3) | **cleared for 4.2/1.3**; **4.3 only partial** | all 5 guard `--force` before the mutating call (see 4.2). `--dry-run` covers only these 5, not the other consequential ops (see 4.3). |
+| `--force` + `--dry-run` on destructive/consequential ops (4.2/1.3/4.3) | **cleared** | all 5 destructive ops guard `--force` before the mutating call; `--dry-run` now covers all 19 consequential ops (5 destructive + 14 more). |
 | canonical verbs + back-compat aliases (6.1/6.3) | **cleared** | drive `rm`+alias `delete` (`3089-3090`), drive `ls`+alias `list` (`2270-2271`); teams/lists/pages `get`+alias `info` (`3572-3573`,`4782-4783`,`5065-5066`); lists/pages/sharepoint `list`+alias `ls` (`4712-4713`,`4963-4964`,`6051-6052`). |
 | presence set validates the enum (3.3) | **cleared** | `main.go:4212-4222` validates against `{Available,Busy,DoNotDisturb,Away,Offline}` and enumerates the set on rejection, before any side effect. |
 
@@ -60,7 +60,7 @@
 |-------|---------|-----|------|----------|
 | 4.1 Create operations idempotent | pass | — | Ft | `libgo365/idempotency.go`: persisted store, `--idempotency-key` 24h TTL + auto content-hash soft-block; wired on send/create commands. |
 | 4.2 Destructive ops require an explicit non-default flag | **pass** | **B** | C | **Blocker cleared (was fail).** Every destructive op guards `--force` *before* the mutating call: mail delete `--permanent` path → `697-701` (force gate precedes `PermanentDeleteMessage`); calendar cancel `1259-1267` (precedes `CancelEvent`); calendar delete `1349-1357` (precedes `DeleteEvent`); drive rm `3121-3126` (precedes `DeleteItem`); drive unshare `3375-3380` (precedes `DeletePermission`). Refusal message: `refusing to … without --force`. mail's plain (soft/recoverable) delete stays unguarded by design — only the permanent path is destructive. |
-| 4.3 Consequential ops support `--dry-run` | **fail** | F | C | **Partial remediation → still fail.** `--dry-run` added only to the 5 destructive ops. Other consequential ops still lack it: mail send, drive share/invite/upload/cp/mv, presence set, calendar create, teams channel send/reply, chat send. Coverage of consequential ops incomplete ⇒ fail, not N/A. |
+| 4.3 Consequential ops support `--dry-run` | pass | | C | All 19 mutating commands carry `--dry-run` (5 destructive + 14: mail send/move, calendar create/respond, drive upload/mkdir/cp/mv/share/invite, teams channel send/reply, chat send, presence set) — short-circuits before the Graph call, respecting `--json`. |
 | 4.4 Mutation responses return the affected id | pass | — | C | Ids returned: mail delete `{id}`, drive unshare `{permissionId}`, calendar create object; cancel/delete/respond now return a `results` array carrying each event id. `mail send` lacks an id (upstream Graph `/sendMail` limitation). |
 
 ### P5. Bounded responses
@@ -130,12 +130,12 @@
 
 ## Score reconciliation
 
-29 pass / 34 applicable. Fails (5): **4.3** (F, conformance — dry-run coverage incomplete), **6.4** (T, feature), **7.1** (B, feature), **10.1** (B, feature), **10.3** (F, feature). N/A (13): 5.4, 7.2, 7.4, 8.1–8.4, 9.2–9.4, 10.2, 10.4, 10.5. Header roll-up (2B·2F·1T) matches the body verdicts above.
+30 pass / 34 applicable. Fails (4): **6.4** (T, feature), **7.1** (B, feature), **10.1** (B, feature), **10.3** (F, feature). N/A (13): 5.4, 7.2, 7.4, 8.1–8.4, 9.2–9.4, 10.2, 10.4, 10.5. Header roll-up (2B·1F·1T) matches the body verdicts above. **All conformance gaps closed; only feature proposals remain.**
 
 ## What remains
 
 **Conformance (auto-fixable) still open — just one:**
-- 4.3 (F) — extend `--dry-run` to the remaining consequential ops (mail send, drive share/invite/upload/cp/mv, presence set, calendar create, teams send/reply). The 5 destructive ops are done.
+- 4.3 (F) — DONE: `--dry-run` now on all 19 consequential ops.
 
 **Pure feature proposals (require go-ahead; Kind=Ft):**
 - 7.1 (B) — real machine introspection (`agent-context`/`--schema`) walking the cobra command/flag tree, not the hand-written `agent-guide`.
