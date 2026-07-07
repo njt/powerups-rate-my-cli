@@ -352,3 +352,34 @@ safety refusals, and a sandbox create→edit→delete lifecycle) — left in the
 as a repeatable gate. Auth freshness is handled by a `… auth refresh`-style
 command (add one if missing). This is what took cu from "passes the rubric" to
 "confirmed working."
+
+---
+
+## Appendix D — Process learnings from remediating a second CLI (go365, 2026-07-07)
+
+Remediating go365 (67% → 92%, incl. an `agent-context` command) taught **process**
+lessons, distinct from cu's *bug* lessons. These are `remediate`/`validate`
+methodology + detection nuances, not new checks — the rubric (what to check) is
+maturing; the process (how to remediate safely against real, moving repos) is
+where the new learning lives.
+
+1. **The target is a moving repo.** We branched from a stale local `main` (9
+   commits behind origin — concurrent `--attach` feature work), causing a rejected
+   push, a 5-way merge conflict, and a mis-pointed tag. → `remediate` now says:
+   `git fetch` and branch from the true `origin/HEAD`; expect concurrent
+   development; reconcile by *combining* (a command that gained `--attach` upstream
+   and `--dry-run` from us keeps both), never clobber.
+2. **Fail-fast guards.** cu placed `--force`/`--dry-run` guards before auth (instant
+   offline refusal); go365 placed them after auth (an agent that forgets `--force`
+   hits a device-code prompt first). Both work; pre-auth is strictly better. →
+   Detection nuance on 1.1/4.2/4.3: prefer guards before client/auth setup;
+   post-auth is a low-severity nit.
+3. **Consistency is cross-CLI.** cu and go365 deliberately share the same
+   `agent-context` shape and canonical verbs — Principle 6's actual point (agents
+   build one model across every CLI). → Note under P6 and in `remediate`: converge
+   a suite's tools; don't invent a local dialect.
+
+(A fourth, environment-specific note — zsh does not word-split unquoted `$var`, so
+multi-word commands passed via unquoted variables in verification loops give false
+"unknown command" negatives — lives in the operator's global instructions, not
+here, since it's about the shell, not the rubric.)

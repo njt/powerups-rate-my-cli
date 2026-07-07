@@ -28,6 +28,11 @@ Collect all findings. Render `report-template.md` → write `SCORECARD.md` in th
 
 A loop that closes conformance gaps and proposes feature gaps. Gate on **kind**, not severity.
 
+**Before you branch — the target is a *moving* repo (learned from go365):**
+- **`git fetch` and branch from the true `origin/HEAD`**, not a possibly-stale local branch. Branching from a stale base caused a 9-commit divergence, a 5-way merge conflict, and a mis-pointed tag on go365 — all avoidable.
+- **Expect concurrent development.** When you merge back, reconcile with work that landed meanwhile by *combining* — a command that gained `--attach` upstream and `--dry-run` from you keeps both; never clobber.
+- **Consistency is cross-CLI, not just per-CLI** (Principle 6's actual point: agents build one generalized model across every CLI they've seen). If the target is one of a suite, converge on the sibling tools you've already remediated — same `agent-context` shape, same canonical verbs, same flag names. Don't invent a local dialect.
+
 1. Run `assess` to get the current scorecard.
 2. **Auto-fix every failing `conformance` check**, Blockers first. These are localized source edits only — add `--json`, add `--force`/`--yes`, add an `isatty` guard, enumerate the valid set in an enum error, route data→stdout / diagnostics→stderr, rename off-convention verbs/flags. One fix per commit. **Never** auto-fix a `feature` check.
 3. **Verify each fix by running read-only commands ONLY** — `--help`, `list`, `get`, anything with `--json` or `--dry-run`. Never run a mutating/destructive command. If a fix can't be verified read-only, re-read the code to confirm.

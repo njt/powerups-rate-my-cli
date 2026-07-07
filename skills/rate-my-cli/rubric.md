@@ -51,6 +51,13 @@ fully remediating one (cu) — including running it against a live workspace:
   Treat these as **runtime risks** flagged during static assessment and *confirmed*
   in the opt-in **validate** phase (live read-only e2e + sandbox-gated mutations —
   see SKILL.md). Static assessment is necessary but not sufficient.
+- **Fail-fast guards (1.1, 4.2, 4.3).** A refusal or `--force`/`--dry-run` guard
+  should short-circuit *before* any network/auth, so an agent that forgets
+  `--force` gets an instant local error instead of an auth prompt or a wasted
+  round-trip — and so the guard is testable offline. Prefer guards placed before
+  the client/auth setup, not merely before the mutating call. (cu placed them
+  pre-auth; go365 placed them post-auth — both "work," but pre-auth is strictly
+  better for agents; flag post-auth placement as a low-severity nit.)
 
 ## Tier 1 — Table Stakes
 
@@ -113,6 +120,13 @@ fully remediating one (cu) — including running it against a live workspace:
 | 6.2 | Flags follow conventions (`--force` not `--skip-confirmations`, `--json` not `--format=json`) | B | C | — | Scan flag names for `--skip-*`, `--format=json`, `--no-confirm` aliases. |
 | 6.3 | Naming is internally consistent across subcommands | F | C | — | Compare naming across subcommands for internal drift. |
 | 6.4 | Documented naming policy + mechanical check (CI/lint) enforces vocabulary | T | Ft | FAIL@T | Look for a documented naming policy + a CI/lint check enforcing it. |
+
+(Note: consistency is also **cross-CLI**. When the target is one of a suite, the
+canonical verbs, flag names, and `agent-context` shape should match sibling tools
+already assessed/remediated — the essay's point is that agents build one
+generalized model across *every* CLI they've seen, so a local dialect defeats it
+even when internally consistent. cu and go365 deliberately share the same
+`agent-context` and verb set for this reason.)
 
 ### P7. Three-layer introspection
 
