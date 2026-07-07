@@ -1,12 +1,14 @@
 # CLI Agent-Nativeness Scorecard
 
-**Target:** /Users/gnat/Source/go365
-**Date:** 2026-07-05
-**Score:** 22 / 35 applicable checks (63%)
-**Failing gaps:** 4 Blocker · 7 Friction · 2 Target
-**Suspicious-N/A warning:** P8 (Async-aware execution) is entirely N/A — go365 is a synchronous wrapper over the Microsoft Graph REST API and submits no async/long-running jobs, so all four P8 checks are legitimately N/A. No other whole principle is entirely N/A.
+**Target:** /Users/gnat/Source/go365 (Go / cobra Microsoft-365 CLI; handlers in `cmd/go365/main.go`, Graph client in `libgo365/`)
+**Date:** 2026-07-07
+**Rubric:** current hardened 47-check rubric (adds 2.7, 7.5; sharpened 2.2 / 5.2 / 5.3; "static ≠ runtime" methodology)
+**Mode:** assess (static, read-only — the target CLI/binary was never run)
+**Score:** 22 / 33 applicable checks (67%)
+**Failing gaps:** 4 Blocker · 6 Friction · 1 Target
+**Delta vs pre-hardening (22 / 35, 4B·7F·2T):** denominator 35→33 (more legitimate N/A); passes 22→22; % 63→67; **all 4 original Blockers persist (4.2, 6.1, 7.1, 10.1 — none remediated)**; Friction 7→6; Target 2→1 (7.3 now passes on a shipped SKILL.md). Both NEW checks (2.7 secrets, 7.5 version) PASS.
 
-Framework: Cobra (`github.com/spf13/cobra`). Entry point `cmd/go365/main.go`; command handlers all in that one 6168-line file; the Graph client lives in `libgo365/`; shared output helpers in `internal/output/output.go`. go365 is a thin, synchronous wrapper over Microsoft Graph — auth/credentials are handled upstream (MSAL device-code flow, tokens in `~/.go365/`) and are out of scope for P9.
+> ⚠️ **Whole-principle N/A:** P8 (Async-aware execution) is entirely N/A. This is **legitimate**, not suspicious — go365 is a synchronous Graph wrapper with no async/job-submitting command, which is P8's own documented escape clause. No other principle is wholly N/A.
 
 ## Per-principle results
 
@@ -14,116 +16,122 @@ Framework: Cobra (`github.com/spf13/cobra`). Entry point `cmd/go365/main.go`; co
 
 | Check | Verdict | Sev | Kind | Evidence |
 |-------|---------|-----|------|----------|
-| 1.1 No command blocks on an interactive prompt without a bypass | pass | — | C | Grep for `input(`/`Scanf`/`survey.`/`bufio.*ReadString`/`promptui`/`confirm` across `cmd/` and `libgo365/` returns no prompt calls; every command runs to completion non-interactively. Pass by absence (no prompts ⇒ non-interactive). |
-| 1.2 TTY detection treats non-TTY stdin as headless | pass | — | C | No prompts exist, so no TTY guard is needed. No `isatty`/`IsTerminal`/`os.Stdin` polling anywhere. Pass by absence. |
-| 1.3 A confirmation-bypass flag exists for destructive ops | fail | F | C | Destructive commands act immediately with no confirmation *and* no bypass flag: `mail delete` (main.go:667), `calendar cancel` (main.go:1154), `calendar delete` (main.go:1210), `drive rm` (main.go:2960), `drive unshare` (main.go:3191). Since they never prompt (1.1 passes) they aren't blocked, but the rubric wants an explicit `--force`/`--yes` bypass convention on destructive ops; none exists. |
-| 1.4 Interactive menus have a structured flag/file equivalent | pass | — | C | No select/menu prompts exist. Pass by absence (no menus). |
-| 1.5 Bypass convention is consistent across subcommands | na | — | C | No `--force`/`--yes` bypass flags exist at all (only `--force-new` for send-dedupe, a different concept). N/A (0–1 bypass flag). |
+| 1.1 No command blocks on an interactive prompt without a bypass | pass | — | C | Pass by absence: repo-wide grep found **no** `bufio.NewReader(os.Stdin)`/`Scanf`/`survey.`/`confirm`/`ReadString` in any handler (only `internal/plugin/plugin.go:32` passes stdin through to a spawned plugin). CLI never blocks on input. |
+| 1.2 TTY detection treats non-TTY stdin as headless | pass | — | C | Pass by absence: no prompts exist, so none can prompt on a TTY. (No `isatty`/`IsTerminal` anywhere — nothing to guard.) |
+| 1.3 Confirmation-bypass flag exists for destructive ops | fail | F | C | Destructive ops exist (see 4.2) but define **no** `--force`/`--yes`. Only `--force-new` exists (`main.go:2594`), which bypasses send-dedupe, not destruction. Not N/A (destructive ops present). |
+| 1.4 Interactive menus have a flag/file equivalent | pass | — | C | Pass by absence: no select/menu prompts. |
+| 1.5 Bypass convention consistent across subcommands | na | — | C | 0–1 bypass flags (only `--force-new`); nothing to be inconsistent. |
 
 ### P2. Structured, parseable output
 
 | Check | Verdict | Sev | Kind | Evidence |
 |-------|---------|-----|------|----------|
-| 2.1 The CLI supports structured (JSON) output | pass | — | C | `--json` wired on ~100 handlers; `output.WriteJSON` (output.go:311) encodes to stdout. e.g. `mailListCmd.Flags().Bool("json", ...)` main.go:724. |
-| 2.2 Every data-returning command supports `--json` (coverage) | pass | — | C | `--json` declared on essentially every data command (mail/calendar/drive/teams/sharepoint/pages/lists list+get+action). `grep -c '"json"'` in main.go = 100. A concise `--agent` and `--fields` projection layer also exist (output.go:192, `writeListAgent` main.go:2013). |
-| 2.3 One consistent flag name (`--json`, not mixed `--format`/`--output`) | pass | — | C | Structured output is uniformly `--json`; no `--format`/`-o json` alias. `drive get --output` (main.go:2384) is a *download-path* flag, not an output-format flag, so no collision. |
-| 2.4 Exit codes: 0 success, non-zero failure | pass | — | C | `main()` returns `os.Exit(1)` on any `rootCmd.Execute()` error (main.go:6165-6166); handlers return errors rather than exiting 0. No taxonomy beyond 0/1 but the Absence FAIL@B condition (always 0 on failure) does not apply. |
-| 2.5 Data → stdout, diagnostics/errors → stderr | pass | — | C | Data via `output.WriteJSON(os.Stdout, ...)` / `fmt.Printf`; warnings/notes/errors via `fmt.Fprintln(os.Stderr, ...)` (main.go:416, 595, 3812, 5381, 5637, 5795). Cobra errors go to stderr. |
-| 2.6 ANSI/color suppressed when output isn't a terminal | pass | — | C | No color/ANSI library or escape codes anywhere (`grep -rn '\\033\|\\x1b\|color\|ansi'` over `cmd/` + `internal/` returns nothing). Pass by absence (no color to suppress). |
+| 2.1 CLI supports structured (JSON) output | pass | — | C | Per-command `--json` on ~40 commands (e.g. `main.go:724,741,752,3241`); `internal/output/output.go` WriteJSON / ListResponse envelope. |
+| 2.2 Every data-returning command supports `--json` (coverage incl. mutations) | fail | F | C | **Sharpened-detection flip.** Mutations `calendar cancel` (`main.go:1166-1207`), `calendar delete` (`1221-1261`), `calendar respond` (`1141-1148`) register **no** `--json` flag and print human text only. `--json` is per-command (not a persistent root flag), so each gap is real. Reads are well covered; the mutation-coverage rule surfaces these three. |
+| 2.3 One consistent flag name | pass | — | C | Always `--json` (bool). No `--format`/`-o json`. `drive get --output` is a file path, not a format selector (`main.go:3269`); `--agent` is a distinct concise mode, not a competing format name. |
+| 2.4 Exit codes: 0 success / non-zero failure | pass | — | C | `RunE` handlers return wrapped errors; `main()` `os.Exit(1)` on non-nil (`main.go:6165-6167`), `SilenceUsage:true`/`SilenceErrors:false`. **Caveat (runtime risk):** `calendar respond` prints "Failed to respond…" then `return nil` (`main.go:1144-1150`) → exits 0 on total failure. Localized bug, not "always 0". |
+| 2.5 Data → stdout, diagnostics → stderr | pass | — | C | Data via `output.WriteJSON(os.Stdout,…)`/`fmt.Print`; warnings/notes to `os.Stderr` (`main.go:416,595,3812,4845,5381`). |
+| 2.6 ANSI/color suppressed off-terminal | pass | — | C | Pass by absence: no color library, no ANSI escapes anywhere — nothing to suppress. |
+| 2.7 Structured output never emits raw secrets | pass | — | C | **NEW check.** No secret-bearing field reaches a JSON encoder: `Config` struct (`libgo365/config.go:11-17`) holds only tenant/client IDs, scopes, timezone, site — **no token field**. `status` (`main.go:207-234`) and `config show` (`285-303`) print no credential; `agent-guide --json` emits a static contract. MSAL tokens live in the `~/.go365` cache and are never serialized to stdout. (Confirm live in validate.) |
 
 ### P3. Errors that teach, and enumerate
 
 | Check | Verdict | Sev | Kind | Evidence |
 |-------|---------|-----|------|----------|
-| 3.1 Failures produce a clear message (not silent, not a bare stack trace) | pass | — | C | Errors are wrapped `fmt.Errorf("failed to ...: %w", err)` throughout (e.g. main.go:690, 2434); `SilenceUsage: true` keeps output clean; no `panic` on the user path. |
-| 3.2 Input validated early, before side effects | pass | — | C | `mail send` validates required `--subject`/`--to`/`--body` before calling `newAuthenticatedClient()` or `SendMail` (main.go:517-540, returns at :533-539 before network). Drive `--library requires --site` checked before any call (main.go:2105 etc.). |
-| 3.3 Enum/choice rejections enumerate the valid set | pass | — | C | `RespondToEvent` rejects with "invalid response: %s (must be accept, decline, or tentative)" (libgo365/calendar.go:362); `--conflict must be fail, rename, or replace` (main.go:2765); `--type must be view or edit` (main.go:3025); `--scope must be anonymous or organization` (main.go:3030); `--role must be read or write` (main.go:3099). |
-| 3.4 Errors include corrective guidance (valid invocation / example) | pass | — | C | Usage-style errors: "usage: calendar respond <event-id> <accept\|decline\|tentative>" (main.go:1130), "usage: calendar cancel ..." (main.go:1184), "client ID and tenant ID must be configured. Use 'go365 config set' to configure" (main.go:130). |
+| 3.1 Failures produce a clear message | pass | — | C | Uniform `fmt.Errorf("…: %w", err)` via cobra `RunE`; `SilenceUsage:true` (`main.go:77-78`); no `panic` in handlers; `SuggestionsMinimumDistance:2` gives "Did you mean". |
+| 3.2 Input validated before side effects | pass | — | C | `mail send` validates subject/to/body (`main.go:532-540`) before send; `drive share` validates `--type`/`--scope` (`3016-3031`) before acting. |
+| 3.3 Enum/choice rejections enumerate the valid set | fail | F | C | Mixed → fail. `calendar respond` enumerates (`libgo365/calendar.go:362`) and `drive share` does (`main.go:3025,3030`), but **`presence set` validates nowhere** — handler passes the raw arg through (`main.go:4055-4058`), `SetPresence` posts it unchecked (`libgo365/teams.go:747-760`); the valid set lives only in `Long` help (`main.go:4037`). |
+| 3.4 Errors include corrective guidance | pass | — | C | Usage examples in errors: `calendar respond` usage (`main.go:1130`), `calendar cancel` usage (`1184`), `--type is required (view or edit)` (`3017`), `--force-new` hint (`2717`). |
 
 ### P4. Safe retries & explicit mutation boundaries
 
 | Check | Verdict | Sev | Kind | Evidence |
 |-------|---------|-----|------|----------|
-| 4.1 Create operations are idempotent (idempotency token or natural key) | pass | — | Ft | Send commands (mail/teams chat/teams channel send+reply) accept `--idempotency-key` (24h TTL) and default to a content-hash soft-block (`addIdempotencyFlags` main.go:2597-2599; check logic main.go:2672-2702; libgo365/idempotency.go). A replay returns `SkipResponse` (output.go:352). Pure resource creates (`calendar create`) delegate creation to Graph upstream. |
-| 4.2 Destructive operations require an explicit, non-default flag | fail | B | C | `mail delete` / `calendar cancel` / `calendar delete` / `drive rm` / `drive unshare` execute on the first positional arg with no `--force`/`--confirm`/non-default gate (main.go:667, 1154, 1210, 2960, 3191). `mail delete --permanent` gates only the *harder* delete; the default soft-delete still needs no confirmation. |
-| 4.3 Consequential operations support `--dry-run` | fail | F | C | No `--dry-run`/`--dryRun` flag anywhere (`grep -rn 'dry-run\|dryRun\|DryRun'` returns nothing). Consequential ops (delete/cancel/send/move/upload/share) all execute directly. |
-| 4.4 Mutation responses return the affected identifier(s) | pass | — | C | `mail send --json` returns `"id": message.ID` (main.go:651); `mail delete --json` returns `"id": messageID` (main.go:697); `calendar create` prints `ID: <created.ID>` (main.go:1641); `drive rm --json` returns `"target"` (main.go:2984). |
+| 4.1 Create operations idempotent | pass | — | Ft | `libgo365/idempotency.go`: persisted store `~/.go365/idempotency.json` (0600, atomic temp+rename); explicit `--idempotency-key` 24h TTL + auto content-hash 5-min soft-block; `Record` only after success. Wired on all send/create commands (`main.go:546,748,3284,3322,4262,4280`). |
+| 4.2 Destructive ops require an explicit non-default flag | **fail** | **B** | C | **Original Blocker — NOT remediated.** No confirmation flag on any destructive command; each acts immediately: `drive rm` (`main.go:2979`), `calendar cancel` (`1196`), `calendar delete` (`1250`), `drive unshare` (`3215`). `mail delete` soft-deletes by default (recoverable) and gates only its *permanent* path behind `--permanent` (`681`) — the plain delete is unguarded. |
+| 4.3 Consequential ops support `--dry-run` | fail | F | C | No `--dry-run`/`--dryRun` anywhere (grep: 0 hits). Consequential ops exist (send, delete, cancel, share) → fail, not N/A. |
+| 4.4 Mutation responses return the affected id | pass | — | C | Ids returned where output exists: `mail delete` `{id}` (`main.go:697`), `drive unshare` `{permissionId}` (`3222`), `calendar create` object (`1636`); text mutations still name the id ("Cancelled event <id>" `1201`). Only `mail send` lacks an id — an upstream Graph `/sendMail` limitation (`602`). |
 
 ### P5. Bounded responses
 
 | Check | Verdict | Sev | Kind | Evidence |
 |-------|---------|-----|------|----------|
-| 5.1 List-style commands have a bounded default (limit/page size) | pass | — | C | `mail list` defaults to `DefaultMessageLimit = 100` (`$top=100`, libgo365/mail.go:14,153); `calendar list` defaults to a bounded 1-day window (main.go:802-823); client-side aggregations cap at `maxScan` (e.g. `aggregateChatsMaxScan = 5000` teams.go:446, `searchPagesMaxScan = 5000` pages.go:168). |
-| 5.2 List commands support filtering and pagination/cursor | pass | — | Ft | Cursor pagination via `--page-token` + `nextPageToken`/`hasMore` envelope (output.go:37-47), plus `--top`, `--skip`, and server-side filters (`--from`/`--subject`/`--search` main.go:721-723; `--filter`-equivalents). |
-| 5.3 Truncated output signals truncation and hints how to narrow | pass | — | C | `ListResponse.Truncated` flag (output.go:42-46) set when a scan cap is hit, with a stderr hint to narrow: "chat list stopped at the scan cap; results may be incomplete" (main.go:3812), "folder filter stopped at the scan cap" (main.go:4845); `agent-guide` documents narrowing on `truncated` (main.go:4374). |
-| 5.4 MCP wrapper: each tool description fits a small audited token budget | na | — | C | No MCP server/wrapper exists (`grep -rni 'mcp'` over source returns nothing). N/A (no MCP wrapper). |
+| 5.1 List commands have a bounded default | pass | — | C | Responses are bounded by Graph server-side paging + `nextPageToken`; `mail list` adds an explicit cap `DefaultMessageLimit=100` (`libgo365/mail.go:14`). Note: only mail / `sites search`(10) / `sharepoint search`(20) / `teams messages`(20) set an explicit cap; calendar/drive/teams/lists/pages inherit Graph's page size (still bounded). |
+| 5.2 List commands support filtering + pagination/cursor | pass | — | Ft | `--page-token` (skiptoken cursor, `libgo365/mail.go:93-133`) + `--skip` offset + filters (`--from/--subject/--search`). **Runtime risk:** losslessness not statically provable — a small `--top`/`--skip` on cursor lists could under-return; calendar uses `$skip`-offset only. Flag for validate. |
+| 5.3 Truncated output signals truncation + consistency | pass | — | C | `ListResponse.Truncated` (`output.go:36-47`, `omitempty`) set only on client-side aggregation caps (`teams chat list`, `pages ls --folder`) with stderr narrowing hints (`main.go:3812,4845`). Trap avoided: `truncated` is **omitted** (never `false`-beside-cursor); cursor lists signal more via `hasMore`/`nextPageToken`. **Runtime risk:** two different completeness signals by command type — confirm no agent-confusion in validate. |
+| 5.4 MCP wrapper tool-description budget | na | — | C | No MCP server / tool-description surface exists (grep: 0 hits). |
 
 ### P6. Cross-CLI vocabulary consistency
 
 | Check | Verdict | Sev | Kind | Evidence |
 |-------|---------|-----|------|----------|
-| 6.1 Verbs follow universal conventions (`get` not `info`, `list` not `ls`) | fail | B | C | **Split under the new idiom rule.** (a) **Friction bucket** — the `drive` subcommand exposes a coherent, internally-consistent filesystem verb set `ls/cat/cp/mv/rm` (main.go:2142/2320/2874/2924/2960), which the rubric names as an explicit downgrade case → these are **Friction** (fix: add `list`/`copy`/`move`/`delete` aliases), not Blockers. (b) **Blocker bucket (drives the overall severity)** — generic `info` used as `get` on `teams info` (3403), `drive info` (2234), `lists info` (4598), `pages info` (4879), and generic `ls` used as `list` on `pages ls` (4778), `lists ls` (4529), `sharepoint ls` (5864) are **not** a documented convention and are internally *inconsistent* (mail/calendar use `get`/`list` for the same read; see 6.3). Docs only say "same calling conventions as m365" (README.md:10) — a compatibility note, not a naming policy. So the generic `info`/`ls` stay **Blocker**. Overall verdict fail; overall Sev **B** driven by the generic `info`/`ls`. |
-| 6.2 Flags follow conventions (`--force` not `--skip-confirmations`, `--json` not `--format=json`) | pass | — | C | Flag names are conventional: `--json`, `--top`, `--page-token`, `--fields`. No `--skip-*`/`--no-confirm`/`--format=json` aliases (`grep '"skip-'` finds only `--skip` as an offset flag, not a confirmation-skip). |
-| 6.3 Naming is internally consistent across subcommands | fail | F | C | Verb drift *within* the CLI: mail/calendar use `get`/`list`/`delete`/`create`, but drive/teams/lists/pages use `info`/`ls`/`rm`/`cat`. Same read operation is `get` in one namespace and `info`+`cat` in another (`calendar get` vs `drive info`+`drive cat`). |
-| 6.4 Documented naming policy + mechanical check (CI/lint) enforces vocabulary | fail | T | Ft | No documented naming policy and no CI/lint vocabulary check (`grep -ni 'naming\|convention\|lint'` in README/CLAUDE/IMPLEMENTATION finds only "calling conventions … as m365", a compatibility note, not an enforced policy). FAIL@T per Absence. |
+| 6.1 Verbs follow universal conventions | **fail** | **B** | C | **Original Blocker — not remediated.** Verb set is internally **inconsistent** across sibling nouns: destroy is `rm` (drive `main.go:2960`) vs `delete` (mail `668` / calendar `1211`); list is `ls` (drive/lists/pages/sharepoint) vs `list` (mail/calendar/teams); `drive get`(download)/`cat`(content)/`info`(metadata) overlap confusingly; filesystem verbs spread onto non-file nouns (`lists ls`, `pages cat`) where undocumented. Downgrade-to-Friction condition (internally consistent + documented convention) not met CLI-wide. *Note: the `drive` subtree alone (ls/cat/cp/mv/rm, documented in `docs/plans/2025-12-26-onedrive-design.md`) would qualify for the Friction downgrade — the Blocker rests on the cross-noun split.* |
+| 6.2 Flags follow conventions | pass | — | C | `--json` (not `--format=json`); no `--skip-*`/`--no-confirm` aliases (`--skip` is a pagination offset). Missing `--force` is a 4.2/1.3 gap, not a naming violation. |
+| 6.3 Naming internally consistent across subcommands | fail | F | C | Same evidence as 6.1 at Friction severity: the verb-per-noun split (`rm`/`delete`, `ls`/`list`, `get`/`cat`/`info`). Output flags (`--json/--agent/--markdown/--top/--fields`) are consistent. |
+| 6.4 Documented naming policy + mechanical (CI/lint) check | fail | T | Ft | Absence → FAIL@T. No vocabulary policy; no `.github/` (no CI); `Makefile:57` `lint` is golangci-lint (Go style only, not verbs). |
 
 ### P7. Three-layer introspection
 
 | Check | Verdict | Sev | Kind | Evidence |
 |-------|---------|-----|------|----------|
-| 7.1 Machine-readable introspection exists (command/flag schema) | fail | B | Ft | `agent-guide --json` (main.go:4322-4442, `agentGuideJSON` at 4394) emits a structured *output-contract* (flags list, pagination idiom, JSON envelope, dedupe semantics) — but it is a hand-written prose contract, NOT an `agent-context`/`--schema`/`dump-schema` command that enumerates the actual command tree with per-command flags and types. The rubric's Blocker is specifically a machine-readable command/flag *schema*; that surface does not exist. FAIL@B. |
-| 7.2 The machine introspection is versioned (`schema_version`) | na | — | C | `agentGuideJSON` carries no `schema_version` and 7.1's schema surface is absent. N/A (7.1 fails). |
-| 7.3 A long-form skill manifest (`SKILL.md`-style) teaches workflows | pass | — | Ft | A shipped skill manifest exists: `.claude/skills/clearing-calendar-with-go365/SKILL.md` teaches a multi-step calendar-clearing workflow driving go365; plus `agent-guide` and an extensive `CLAUDE.md` "Agent-Friendly Output Flags" section. |
-| 7.4 Introspection generated/validated against the real implementation | fail | T | Ft | `agentGuideText`/`agentGuideJSON` are hand-maintained constants (main.go:4342, 4394) kept "consistent with CLAUDE.md" by comment only; no codegen or test asserts they match the real cobra command/flag tree. FAIL@T (no generation/validation binding). |
+| 7.1 Machine-readable introspection (command/flag schema) | **fail** | **B** | Ft | **Original Blocker — not remediated.** `agent-guide` (`main.go:4322`, `agentGuideJSON()` `4394`) is a **hand-written contract** (output flags, pagination idiom, envelope, send-dedupe) — even as `--json` it does **not** enumerate the real command/flag tree, so per the detection rule it does not satisfy 7.1. |
+| 7.2 Machine introspection is versioned | na | — | C | 7.1 fails; the guide carries no `schema_version` regardless. |
+| 7.3 Long-form skill manifest teaches workflows | pass | — | Ft | Ships `.claude/skills/clearing-calendar-with-go365/SKILL.md`, a workflow-teaching manifest teaching an end-to-end go365 workflow. |
+| 7.4 Introspection generated/validated against real impl | na | — | Ft | 7.1 fails — no machine command-tree to sync-check. |
+| 7.5 `version` command reports build (version + commit/date) | pass | — | Ft | **NEW check.** `version` cmd (`main.go:4308-4319`) prints version/commit/buildDate, injected via `-ldflags` (`Makefile:13`) with a `debug.ReadBuildInfo` fallback (`main.go:51-57`). Root `--version` too (`108-116`). An agent can detect a stale binary. |
 
-### P8. Async-aware execution — *entire principle N/A (go365 wraps no async API)*
-
-| Check | Verdict | Sev | Kind | Evidence |
-|-------|---------|-----|------|----------|
-| 8.1 Async-submitting commands offer `--wait` | na | — | Ft | No command returns a job id / `status: queued`; every Graph call is synchronous request→response. N/A (no async API). |
-| 8.2 The poll loop uses exponential backoff + jitter | na | — | C | No poll loop exists (`grep -ni 'poll\|backoff\|jitter\|queued'` returns nothing). N/A. |
-| 8.3 A persistent job ledger records jobs across invocations | na | — | Ft | No job ledger; the only persistent store is the idempotency cache (`~/.go365/`, idempotency_lock.go), not a job ledger. N/A. |
-| 8.4 A `jobs` command exposes `list`/`get`/`prune` | na | — | Ft | No `jobs` command. N/A. |
-
-### P9. Persistent identity through profiles — *non-auth config bundle*
+### P8. Async-aware execution — *entire principle N/A (synchronous Graph wrapper, no async API)*
 
 | Check | Verdict | Sev | Kind | Evidence |
 |-------|---------|-----|------|----------|
-| 9.1 If commands force re-specifying a recurring non-auth config bundle, the CLI can persist & reuse it | pass | — | Ft | A recurring non-auth cluster exists — `--site`/`--library` across ~15 drive commands (main.go:3243-3345) and sharepoint (5771, 5880), plus timezone — and it IS persistable: `config set --sharepoint-site` and `--timezone` are stored in `~/.go365/config.json` (config.go:31-37) and used as defaults (`siteName = config.SharePointSite` main.go:5771/5880; timezone fallback main.go:1760, 1885). So the recurring bundle is not force-re-specified; it has a single persisted config. (It's a single global config, not a named multi-profile system — see 9.2.) |
-| 9.2 Profile management subcommands exist (`save`/`use`/`list`/`show`/`delete`) | fail | F | Ft | Only `config set` / `config show` exist (main.go:244, 281) — one global config, no *named* profiles and no `save`/`use`/`list`/`delete` over multiple profiles. An agent juggling several tenants/sites cannot name and switch between saved bundles. |
-| 9.3 `--profile` is a persistent root flag; precedence flag > env > profile > default | fail | F | C | No `--profile` root flag; config is a single file with no per-invocation selection and no documented flag>env>profile>default precedence chain. |
-| 9.4 Profiles surfaced in machine introspection (`agent-context`) | na | — | C | No profile system (9.2 fails) and no machine command/flag introspection (7.1 fails). N/A. |
-| 9.5 Stable, documented storage location (`~/.<cli>/`) | pass | — | C | Config stored at a stable `~/.go365/config.json` (config.go:31-37), documented in README.md:187 and IMPLEMENTATION.md:32. |
+| 8.1 `--wait` on async-submitting commands | na | — | Ft | No async/job-submitting command — synchronous Graph calls only. |
+| 8.2 Poll loop uses exponential backoff + jitter | na | — | C | No poll loop (8.1 absent). |
+| 8.3 Persistent job ledger | na | — | Ft | No async jobs to record. |
+| 8.4 `jobs list/get/prune` | na | — | Ft | No job ledger. |
+
+### P9. Persistent identity through profiles — *auth (MSAL device-code) out of scope*
+
+| Check | Verdict | Sev | Kind | Evidence |
+|-------|---------|-----|------|----------|
+| 9.1 Persist & reuse a recurring non-auth config bundle | pass | — | Ft | Non-auth config persists: `config set --sharepoint-site`/`--timezone` (`main.go:256-270`) → `~/.go365/config.json`, shown by `config show`. Covers the main recurring `--site`/timezone cluster. (Per-call `--user`/`--library`/`--shared` selectors are not persisted — minor gap.) |
+| 9.2 Profile management subcommands | na | — | Ft | No named-profile system — a single global config bundle, not `save/use/list/delete` profiles. |
+| 9.3 `--profile` root flag + precedence | na | — | C | No `--profile` flag / profiles (root registers only `--version`). |
+| 9.4 Profiles surfaced in introspection | na | — | C | No profiles to surface. |
+| 9.5 Stable, documented storage location | pass | — | C | `~/.go365/config.json`, 0700 dir / 0600 file, `libgo365/config.go:31-36`. |
 
 ### P10. Two-way I/O
 
 | Check | Verdict | Sev | Kind | Evidence |
 |-------|---------|-----|------|----------|
-| 10.1 A feedback channel exists (`feedback <text>` recorded locally) | fail | B | Ft | No `feedback` command (`grep -ni 'feedback'` in main.go finds nothing; matches are only in `docs/.spacedock-state` workflow files). FAIL@B. |
-| 10.2 Feedback can POST upstream when configured, and that's discoverable | na | — | C | No feedback channel exists (10.1 fails). N/A. |
-| 10.3 Artifact-producing commands support `--deliver` (stdout/file/webhook) | fail | F | Ft | `drive get` produces a file artifact and offers `--output <path>` (main.go:2384) — a file sink only, not the `--deliver` abstraction with stdout/file/webhook schemes. No webhook or stdout-delivery option; other artifact commands (`drive cat`, `pages cat`) only stream to stdout. |
-| 10.4 File sinks write atomically; unknown schemes get a structured refusal | fail | F | C | `drive get` writes directly to `os.Create(outputPath)` and only `os.Remove`s on download error (main.go:2432-2442) — not a temp-file + atomic rename; a crash mid-download leaves a truncated file at the final path. No scheme handling (no `--deliver`), so no structured refusal for unknown schemes. |
-| 10.5 `--deliver` + `feedback` surfaced in machine introspection | na | — | C | Neither `--deliver` nor `feedback` exists, and 7.1's schema surface is absent. N/A (depends on 7.1). |
+| 10.1 Feedback channel exists | **fail** | **B** | Ft | **Original Blocker — not remediated.** No `feedback` command; grep for `feedback`/`jsonl` across the tree returns nothing. |
+| 10.2 Feedback can POST upstream when configured | na | — | C | 10.1 fails — no feedback path. |
+| 10.3 Artifact commands support `--deliver` | fail | F | Ft | Artifacts are produced (`drive get` downloads to a file, `main.go:2432`) but only via a bare `--output`/`-o` path (`3269`) — no scheme abstraction (file/webhook/stdout). Per rule, bare file sink = partial credit = fail@F. `drive cat`/`pages cat`/`lists cat`/`sharepoint get` stream to stdout only. |
+| 10.4 File sinks atomic; unknown schemes refused | na | — | C | No `--deliver`. (Note: `drive get` writes non-atomically via `os.Create` + partial-cleanup, `main.go:2432,2440` — relevant if `--deliver` is added.) |
+| 10.5 `--deliver` + `feedback` in introspection | na | — | C | Depends on 7.1 (fails) and on 10.1/10.3 surfaces that don't exist. |
+
+## Runtime risks to confirm in a `validate` phase (static can't settle these)
+
+1. **Pagination losslessness (5.2).** Does `--page-token`/`--skip` with a small `--top` on cursor lists (`mail list`, `drive ls`, `teams`) visit every item exactly once? Assert a `--page-token` page equals `items[k:2k]` of one larger read. Watch calendar's `$skip`-offset path especially.
+2. **truncated/hasMore two-signal model (5.3).** Confirm an agent following the documented idiom never sees a `truncated:false`-beside-cursor lie, and that aggregation caps (`teams chat list`, `pages ls --folder`) set `truncated:true` only when data was actually cut.
+3. **Response-parse fragility.** Feed real Graph responses to the `libgo365` structs; hunt for fields typed `string` that Graph may return as number/array (ids, dates, `@odata.count`) — the class that crashed cu's `comment add`.
+4. **Secret-leak confirmation (2.7).** Static shows no token field reaches JSON; confirm at runtime that `status`, `config show`, `agent-guide --json`, and error paths never dump the MSAL access token/JWT.
+5. **Enum pass-through (3.3).** `presence set` posts a raw value to Graph — confirm an invalid value yields a clean error, not a crash/opaque 400.
+6. **Exit-code-on-failure bug (2.4).** `calendar respond` returns nil after printing "Failed to respond…" → exits 0 on total failure. Confirm and treat as a bug.
+7. **Unguarded destructive ops (4.2).** Confirm (read-only, via `--help` — do NOT run against real data) that `drive rm` / `calendar delete` / `calendar cancel` execute with no `--force`.
 
 ## Remediation plan
 
 ### Auto-fixable now (failing `conformance` checks, Blockers first)
-- [ ] 4.2 (B) — Add a `--force`/`--yes` gate to `mail delete` (main.go:667), `calendar cancel` (1154), `calendar delete` (1210), `drive rm` (2960), `drive unshare` (3191): require the flag (or non-TTY headless bypass) before the destructive Graph call. Pairs with 1.3.
-- [ ] 6.1 (B) — Rename off-convention verbs, keeping the current names as aliases: add `get` alias for `info` (teams/drive/lists/pages), `list` alias for `ls`, `delete` alias for `rm`, `copy`/`move` for `cp`/`mv`. Cobra `Aliases:` keeps back-compat while making the canonical verb conventional.
-- [ ] 1.3 (F) — Same edit as 4.2: introduce one bypass flag name (`--force`) consistently across all destructive commands.
-- [ ] 4.3 (F) — Add `--dry-run` to consequential handlers (delete/cancel/move/upload/share/send); print the intended action + affected id and return before the mutating call.
-- [ ] 6.3 (F) — After 6.1, converge read verbs so the same operation has one name everywhere (`get` for single-object read; keep `cat` only as a raw-content alias if desired).
-- [ ] 9.3 (F) — Add a `--profile` persistent root flag and document flag > env > profile > default precedence (depends on 9.2 landing).
-- [ ] 10.4 (F) — Make `drive get` write atomically: download to a temp file in the destination dir, then `os.Rename` into place; on any error remove the temp file (main.go:2432-2442).
+- [ ] 4.2 (**B**) — add a required non-default guard (`--force`/`--yes`) to `drive rm`, `calendar cancel`, `calendar delete`, `drive unshare` (and gate `mail delete`'s soft path, or accept recoverable-by-default). (`main.go:2979,1196,1250,3215`)
+- [ ] 6.1 (**B**) — alias canonical verbs (`delete` for `rm`, `list` for `ls`, `get`/`show` for `info`) so the destroy/list/metadata verb is uniform across nouns; keep filesystem aliases on `drive`. (`main.go` verb `Use:` fields)
+- [ ] 2.2 (F) — register `--json` + a structured result on `calendar cancel`/`delete`/`respond`. (`main.go:1166,1221,1141`)
+- [ ] 3.3 (F) — validate `presence set` against its enum and enumerate the valid set on rejection. (`main.go:4055`)
+- [ ] 4.3 (F) — add `--dry-run` to consequential ops (send/delete/cancel/share). (grep: none today)
+- [ ] 1.3 (F) — the `--force`/`--yes` added for 4.2 also clears this (destructive bypass flag).
+- [ ] 6.3 (F) — resolved by the 6.1 verb-aliasing (internal naming consistency).
 
-### Friction (conformance, lower priority)
-- [ ] 7.2 — Once a real schema surface exists (7.1), stamp it with `schema_version`.
-- [ ] 9.4 / 10.5 — Once profiles / `--deliver` / `feedback` exist and a schema command exists, surface them there.
-
-### Proposals — features, not auto-built (failing `feature` checks)
-- 7.1 (B) — Add an `agent-context`/`--schema` command that walks the live cobra tree and emits every command + flag (name, type, default, required, help) as JSON. Highest-leverage gap: today an agent must read `agent-guide` prose or the repo. Requires your go-ahead.
-- 10.1 (B) — Add a `feedback <text>` command appending JSONL to `~/.go365/feedback.jsonl` (with optional upstream POST for 10.2). Requires your go-ahead.
-- 7.4 (T) — Generate/validate `agent-guide` (and any new schema) from the real command tree, or add a test asserting they stay in sync. Requires your go-ahead.
-- 6.4 (T) — Document a naming policy and add a CI/lint check that rejects banned verbs/flags on new commands. Requires your go-ahead.
-- 9.2 (F) — Add a named-profile subsystem (`config profile save/use/list/show/delete`) over `~/.go365/`, generalizing the single config into named bundles (tenant + site + timezone). Requires your go-ahead.
-- 10.3 (F) — Generalize `drive get --output` into a `--deliver` abstraction (stdout/file/webhook) across artifact commands. Requires your go-ahead.
+### Proposals — features, not auto-built (failing `feature` checks; require go-ahead)
+- 7.1 (**B**) — add real machine introspection (`agent-context`/`--schema`) emitting the actual cobra command/flag tree as structured data (walk `rootCmd`), not the hand-written `agent-guide`.
+- 10.1 (**B**) — add a `feedback <text>` command writing local JSONL (optionally POST upstream when configured — 10.2).
+- 10.3 (F) — generalize `drive get --output` into a `--deliver` scheme abstraction (stdout/file/webhook) with atomic file writes + structured refusal of unknown schemes (10.4).
+- 6.4 (T) — document a naming policy and add a CI/lint check enforcing the verb/flag vocabulary.
