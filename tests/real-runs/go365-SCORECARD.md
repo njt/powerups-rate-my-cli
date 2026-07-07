@@ -114,7 +114,7 @@
 
 | Check | Verdict | Sev | Kind | Evidence |
 |-------|---------|-----|------|----------|
-| 10.1 Feedback channel exists | **fail** | **B** | Ft | **Blocker persists (feature, untouched).** No `feedback` command; grep for `feedback`/`jsonl` returns nothing. Feature proposal. |
+| 10.1 Feedback channel exists | **fail** | **B** | Ft | **Declined non-goal** (owner's call, same as cu): a feedback channel needs an upstream receiver to be worth building. No `feedback` command exists. Scored fail@B for completeness, but intentionally not pursued. |
 | 10.2 Feedback can POST upstream when configured | na | — | C | 10.1 fails. |
 | 10.3 Artifact commands support `--deliver` | fail | F | Ft | Artifacts produced (`drive get` downloads to file) via bare `--output`/`-o` path only — no scheme abstraction (file/webhook/stdout). Partial credit ⇒ fail@F. Feature proposal. |
 | 10.4 File sinks atomic; unknown schemes refused | na | — | C | No `--deliver`. |
