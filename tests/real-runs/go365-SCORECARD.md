@@ -5,9 +5,9 @@
 **Date:** 2026-07-07
 **Rubric:** current hardened 47-check rubric (adds 2.7, 7.5; sharpened 2.2 / 5.2 / 5.3; "static ≠ runtime" methodology)
 **Mode:** assess (static, read-only — `go build` + `--help` only; no Microsoft Graph operation run)
-**Score:** 30 / 34 applicable checks (88%)
-**Failing gaps:** 2 Blocker · 1 Friction · 1 Target
-**Delta vs prior assess (22 / 33, 4B·6F·1T):** numerator 22→30 (+8); denominator 33→34; % 67→88 (+21pp). **Seven conformance checks flipped fail→pass** (4.2, 6.1 Blockers; 1.3, 2.2, 3.3, 4.3, 6.3 Friction) plus 1.5, and the `calendar respond` exit-0 bug fixed. **All conformance gaps are now closed** — the two remaining Blockers (7.1, 10.1) and the rest (10.3, 6.4) are *feature* proposals. Build + `--help` verified working.
+**Score:** 33 / 36 applicable checks (92%)
+**Failing gaps:** 1 Blocker · 1 Friction · 1 Target
+**Delta vs prior assess (22 / 33, 4B·6F·1T):** now **33 / 36 (92%)**, +25pp. Seven conformance checks flipped fail→pass (4.2, 6.1 Blockers; 1.3, 2.2, 3.3, 4.3, 6.3 Friction) plus 1.5 and the `calendar respond` exit-0 fix; then the **`agent-context`** command (v0.4.0) cleared **7.1** (Blocker) and flipped **7.2** + **7.4** N/A→pass. **All conformance gaps closed, plus real machine introspection.** Remaining: **10.1** (feedback, the last Blocker), **10.3** (`--deliver`), **6.4** (naming CI) — all *feature* proposals. Build + `--help` verified working.
 
 > ⚠️ **Whole-principle N/A:** P8 (Async-aware execution) is entirely N/A — go365 is a synchronous Graph wrapper with no async/job-submitting command (P8's own documented escape clause). No other principle is wholly N/A.
 
@@ -85,10 +85,10 @@
 
 | Check | Verdict | Sev | Kind | Evidence |
 |-------|---------|-----|------|----------|
-| 7.1 Machine-readable introspection (command/flag schema) | **fail** | **B** | Ft | **Blocker persists (feature, untouched).** `agent-guide` (`main.go:4505`, `--json` at `4518`) is a hand-written contract (output flags, pagination idiom, envelope) — it does **not** enumerate the real command/flag tree, so per the detection rule it doesn't satisfy 7.1. No `agent-context`/`--schema`/`dump-schema` exists (grep: 0 hits). Feature proposal. |
-| 7.2 Machine introspection is versioned | na | — | C | 7.1 fails. |
+| 7.1 Machine-readable introspection (command/flag schema) | pass | | Ft | `go365 agent-context` (`cmd/go365/agentcontext.go`) walks the live cobra tree and emits the real command/flag schema as JSON (`schema_version` 1), zero-setup, no Graph. Matches cu's `agent-context`. The prose `agent-guide` remains as a separate contract. |
+| 7.2 Machine introspection is versioned | pass | | C | `agent-context` carries `"schema_version":"1"`. |
 | 7.3 Long-form skill manifest teaches workflows | pass | — | Ft | Ships `.claude/skills/clearing-calendar-with-go365/SKILL.md`, a workflow-teaching manifest. |
-| 7.4 Introspection generated/validated against real impl | na | — | Ft | 7.1 fails — no machine command-tree to sync-check. |
+| 7.4 Introspection generated/validated against real impl | pass | | Ft | `agent-context` is generated from the live cobra tree at runtime — in-sync by construction (cannot drift from the real commands). |
 | 7.5 `version` command reports build (version + commit/date) | pass | — | Ft | `version` cmd (`4491`) prints version/commit/buildDate via `-ldflags` with `debug.ReadBuildInfo` fallback; root `--version` too. |
 
 ### P8. Async-aware execution — *entire principle N/A (synchronous Graph wrapper, no async API)*
@@ -130,7 +130,7 @@
 
 ## Score reconciliation
 
-30 pass / 34 applicable. Fails (4): **6.4** (T, feature), **7.1** (B, feature), **10.1** (B, feature), **10.3** (F, feature). N/A (13): 5.4, 7.2, 7.4, 8.1–8.4, 9.2–9.4, 10.2, 10.4, 10.5. Header roll-up (2B·1F·1T) matches the body verdicts above. **All conformance gaps closed; only feature proposals remain.**
+33 pass / 36 applicable. Fails (3): **6.4** (T, feature), **10.1** (B, feature), **10.3** (F, feature). N/A (11): 5.4, 8.1–8.4, 9.2–9.4, 10.2, 10.4, 10.5. Header roll-up (1B·1F·1T) matches the body verdicts above. **All conformance gaps closed, plus 7.1/7.2/7.4 via `agent-context`; only feedback (10.1), `--deliver` (10.3), and naming-CI (6.4) remain.**
 
 ## What remains
 
