@@ -1,6 +1,6 @@
 {
   "name": "powerups-rate-my-cli",
-  "description": "Assess and remediate a CLI codebase against agent-native CLI principles — 45 static pass/fail checks across 10 principles, with a read-only assessment and a conformance-fix loop",
+  "description": "Assess and remediate a CLI codebase against agent-native CLI principles — 47 static pass/fail checks across 10 principles, with a read-only assessment and a conformance-fix loop",
   "version": "1.0.0",
   "author": {
     "name": "Nat Torkington",
