@@ -3,8 +3,8 @@
 > A [Powerup](https://github.com/njt/powerups-marketplace) — a Claude Code plugin.
 
 A Claude Code skill that **statically assesses a CLI codebase** for how well it
-serves AI agents — **inspired by** Trevin Chow's essay *10 Principles for
-Agent-Native CLIs*, and extended well beyond it from applying the rubric to real
+serves AI agents — **inspired by** [Trevin Chow's essay *10 Principles for
+Agent-Native CLIs*](https://trevinsays.com/p/10-principles-for-agent-native-clis), and extended well beyond it from applying the rubric to real
 projects. It turns the essay's prose into mechanically-scored checks, drives a
 **conformance-fix loop**, and can optionally **validate the result live**
 (because passing the rubric ≠ actually working). See [Provenance](#provenance)
@@ -108,8 +108,8 @@ only `python3` and `jq`.
 
 ## Provenance
 
-This project was **inspired by** Trevin Chow's essay *10 Principles for
-Agent-Native CLIs* (`trevin-essay.md` in this repo) — it is not a literal
+This project was **inspired by** [Trevin Chow's essay *10 Principles for
+Agent-Native CLIs*](https://trevinsays.com/p/10-principles-for-agent-native-clis) (`trevin-essay.md` in this repo) — it is not a literal
 implementation of it. Credit for the direction is his; the operational machinery,
 and the lessons from taking real CLIs from "passes the rubric" to "confirmed
 working," are ours.
