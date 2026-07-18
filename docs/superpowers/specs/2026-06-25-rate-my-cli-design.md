@@ -249,8 +249,11 @@ Absence column = resolution when the thing the check looks for is absent.
 | 7.3 | A long-form skill manifest (`SKILL.md`-style) teaches workflows | T | Ft | FAIL@T |
 | 7.4 | Introspection is generated/validated against the real implementation (in sync) | T | Ft | N/A (7.1 fails) |
 | 7.5 | A `version` command reports the build (version + commit/date) | F | Ft | FAIL@F |
+| 7.6 | `--help`/`-h` at every command level prints usage, exits 0, and never executes the command's action | B | C | FAIL@B |
 
-(Note: `--help` for humans is assumed present; its absence falls out of 7.1's "only `--help`, nothing structured" Blocker framing.)
+(7.6 is the essay's Layer 1 — "progressive help discovery" — which the original
+decomposition assumed rather than asserted; see Appendix E for why it takes the
+safety form, not the "help text exists" form.)
 
 **P8. Async-aware execution** — *entire principle N/A if the CLI wraps no async API*
 
@@ -281,8 +284,9 @@ Absence column = resolution when the thing the check looks for is absent.
 | 10.4 | File sinks write atomically; unknown schemes get a structured refusal | F | C | N/A (no `--deliver`) |
 | 10.5 | `--deliver` + `feedback` surfaced in machine introspection | T | C | N/A (depends on 7.1) |
 
-**Totals:** 10 principles, 47 checks (P1–P5 = 24, P6–P10 = 23; ≈ 4–5 per principle).
-Checks 2.7 and 7.5 were added from real-world use (see Appendix C).
+**Totals:** 10 principles, 48 checks (P1–P5 = 24, P6–P10 = 24; ≈ 4–5 per principle).
+Checks 2.7 and 7.5 were added from real-world use (see Appendix C); 7.6 recovers
+the essay's Layer 1 (see Appendix E).
 
 ---
 
@@ -383,3 +387,50 @@ where the new learning lives.
 multi-word commands passed via unquoted variables in verification loops give false
 "unknown command" negatives — lives in the operator's global instructions, not
 here, since it's about the shell, not the rubric.)
+
+---
+
+## Appendix E — Check 7.6: help is safe and universal (2026-07-19)
+
+The essay's P7 opens: "The original principle was 'progressive help discovery.'
+That's still the bottom layer" — Layer 1 is `mycli --help`, human-shaped text.
+Our decomposition (7.1–7.5) started at Layer 2 and *assumed* Layer 1, because the
+essay's own Blocker rung ("a CLI with only `--help` and nothing structured")
+presumes `--help` exists. Nothing asserted the baseline itself. 7.6 recovers it.
+Provenance: essay-seeded (unlike 2.7/7.5); the safety hardening below is ours.
+
+**Why the safety form, not "help text exists":** every mainstream framework
+(cobra, click, argparse, clap, commander) generates recursive per-subcommand help
+automatically, so a bare "does `--help` print help?" check passes almost
+everywhere and discriminates nothing. What actually burns agents is `--help`
+being *unforgiving* — a CLI that punishes an attempt to learn:
+
+- **Executes anyway.** A hand-rolled parser that treats unrecognized flags as
+  positionals turns `cli delete X --help` into a deletion. This is the
+  catastrophic fail, and the reason 7.6 is a Blocker.
+- **Rejects instead of answering.** Framework CLIs can break their own inherited
+  help — cobra `DisableFlagParsing`, help-func overrides, greedy positional
+  `Args`; click `add_help_option=False`; argparse `add_help=False`. The
+  *declared ≠ honored* methodology bullet applies: framework ⇒ pass only after
+  checking for suppression.
+- **Exits non-zero.** An agent probing with `--help` reads a non-zero exit as
+  "this command is broken" and abandons a working tool.
+
+Hence the assertion: *`--help`/`-h` at every command level prints usage, exits 0,
+and never executes the command's action* — Sev B, Kind C (wiring help into a
+dispatch level is a localized edit), Absence FAIL@B (there is no legitimate
+"no help" CLI). Detection is static: framework CLIs pass unless suppression is
+found; hand-rolled parsers need per-dispatch-level confirmation that `-h`/
+`--help` is checked *before* the action runs.
+
+The detection text was dry-run by a fresh evaluator against the three fixtures
+(all pass, matching EXPECTED) and hardened from its feedback: the framework
+contract itself is the evidence for exit-0/never-executes (don't demand a
+per-handler proof the framework can't show); suppression must be checked at
+*every* subcommand registration, not just the root; argparse's catastrophic-fail
+analogs (`nargs=argparse.REMAINDER`, `parse_known_args` + hand-rolled dispatch)
+are named alongside cobra's; and a pass is evidenced by the *absence* of
+suppression at cited construction sites.
+
+Real-run scorecards in `tests/real-runs/` predate 7.6 and remain 47-check
+records; they are not retro-edited.

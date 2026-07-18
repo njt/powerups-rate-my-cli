@@ -9,5 +9,6 @@ Mostly passes on Tier 1. Remaining gaps are Tier-2 features.
 - 6.1 pass · 6.2 pass
 - 2.7 pass — JSON output carries no token/jwt/secret/password/key fields to leak
 - 7.1 fail B Ft — no agent-context (feature → proposal, not auto-fixed)
+- 7.6 pass — argparse default help at root and per-subcommand (no `add_help=False`)
 - 7.5 fail F Ft — no `version` command (feature → proposal, not auto-fixed)
 - 9.1 na — no recurring non-auth config; 10.1 fail B Ft — no feedback channel (feature)

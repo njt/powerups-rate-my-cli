@@ -10,7 +10,7 @@ projects. It turns the essay's prose into mechanically-scored checks, drives a
 (because passing the rubric ≠ actually working). See [Provenance](#provenance)
 for what comes from the article versus what we added.
 
-It scores **47 pass/fail checks** across the 10 principles, maps each gap onto a
+It scores **48 pass/fail checks** across the 10 principles, maps each gap onto a
 Blocker / Friction / Target severity, and tags each as `conformance` (a localized
 edit) or `feature` (a whole subsystem). The output is a `SCORECARD.md` with
 `file:line` evidence and a prioritized remediation plan.
@@ -52,7 +52,7 @@ raises a suspicious-N/A warning.
 ```
 skills/rate-my-cli/
   SKILL.md            # orchestration: modes, recon/fan-out/synthesize, the loop
-  rubric.md           # the 47 checks: id, assertion, severity, kind, absence, detection
+  rubric.md           # the 48 checks: id, assertion, severity, kind, absence, detection
   report-template.md  # SCORECARD.md skeleton
 
 docs/superpowers/
@@ -121,13 +121,17 @@ working," are ours.
 
 **Our additions** (developed by applying the rubric to real CLIs — azdo, go365,
 msgvault, agentsview, kata, serf, and a full remediation of `cu`):
-- turning that prose into **discrete, mechanically-scored checks** (47 of them);
+- turning that prose into **discrete, mechanically-scored checks** (48 of them);
 - the **`kind`** axis (conformance vs feature) and the **absence-resolution**
   model (PASS / N-A / FAIL);
 - the **detection methodology** hardened from real runs (declared≠honored,
   idiomatic verbs, and *static ≠ runtime correctness*);
 - checks **2.7** (no secret leak) and **7.5** (version reporting), added from
   real-world use and marked *(from real-world use)* in the rubric;
+- check **7.6** (help is safe and universal) is essay-seeded — it recovers the
+  essay's Layer 1 ("progressive help discovery"), which our original
+  decomposition assumed rather than asserted — with the safety hardening
+  (never executes the action, exits 0) being ours (spec Appendix E);
 - the **assess / remediate / validate** workflow — including the live-validation
   phase the essay doesn't cover, which is where the hardest bugs actually surface.
 

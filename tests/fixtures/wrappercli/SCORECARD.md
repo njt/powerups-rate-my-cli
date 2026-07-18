@@ -2,7 +2,7 @@
 
 **Target:** tests/fixtures/wrappercli/wrappercli.py
 **Date:** 2026-06-26
-**Score:** 17 / 24 applicable checks (71%)
+**Score:** 18 / 25 applicable checks (72%)
 **Failing gaps:** 2 Blocker · 2 Friction · 3 Target
 
 > ⚠️ **Suspicious N/A warning:** Principles **P8** (Async-aware execution) and **P9** (Persistent identity through profiles) returned **entirely N/A**. P8 is N/A because the wrapper submits no async jobs. P9 is N/A because the only persistent state is auth (`UPSTREAM_TOKEN` via env) and there is no recurring non-auth config bundle — confirm this is genuinely a thin per-call wrapper and not a missed profile surface.
@@ -76,6 +76,7 @@
 | 7.3 Long-form skill manifest teaches workflows | fail | T | Ft | No `SKILL.md`/skills dir teaching workflows for this CLI. |
 | 7.4 Introspection generated/validated against real implementation | na | — | Ft | N/A: 7.1 fails (no introspection to keep in sync). |
 | 7.5 A `version` command reports the build (version + commit/date) | fail | F | Ft | No `version` command / `--version` surface; only `get`/`list` are registered (wrappercli.py:22-23) ⇒ absent ⇒ FAIL@F. |
+| 7.6 `--help`/`-h` at every level prints usage, exits 0, never executes the action | pass | — | C | argparse default `add_help` at root and both `add_parser` subcommands (wrappercli.py:20-23); no `add_help=False`; help dispatches before any handler and exits 0. |
 
 ### P8. Async-aware execution
 

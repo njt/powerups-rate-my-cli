@@ -8,8 +8,8 @@
   "plugins": [
     {
       "name": "powerups-rate-my-cli",
-      "description": "Assess and remediate a CLI codebase against agent-native CLI principles — 47 static pass/fail checks across 10 principles, with a conformance-fix loop",
-      "version": "1.0.0",
+      "description": "Assess and remediate a CLI codebase against agent-native CLI principles — 48 static pass/fail checks across 10 principles, with a conformance-fix loop",
+      "version": "1.1.0",
       "source": "./"
     }
   ]

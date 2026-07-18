@@ -20,3 +20,8 @@ Expected N/A (with reason):
 
 Expected pass-by-absence:
 - 1.4 — no interactive menus
+
+Expected pass (guard against over-eager failing):
+- 7.6 pass — argparse default help (no `add_help=False`), recursive via
+  `add_parser`; help exits 0 and never reaches a handler. badcli fails plenty,
+  but not this.

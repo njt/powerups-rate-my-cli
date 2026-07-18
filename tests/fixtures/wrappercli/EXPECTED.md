@@ -12,5 +12,6 @@ per-call. P9 must be N/A, not a Blocker fail.
 - 3.4 pass — auth error names where to get a token
 - 2.7 pass — JSON output carries no token/jwt/secret/password/key fields to leak
 - 7.5 fail F Ft — no `version` command (feature → proposal)
+- 7.6 pass — argparse default help at root and per-subcommand (no `add_help=False`)
 - Suspicious-N/A: P8 and P9 fully N/A is expected here, but the scorecard must
   still SHOW the warning so the reviewer can confirm it's legitimate.

@@ -15,6 +15,7 @@ not the original failing state (see `../badcli/EXPECTED.md` for the before).
 - 4.4 — `delete` returns the affected id
 - 5.1 — `list` has a bounded default limit (20)
 - 6.1 — verbs renamed `info`→`get`, `ls`→`list`
+- 7.6 — passed before and after (argparse default help); the loop must not touch it
 
 ## Feature checks that must remain (NOT built — proposals only)
 - 7.1 — machine-readable introspection (`agent-context`): still absent

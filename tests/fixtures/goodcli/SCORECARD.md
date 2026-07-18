@@ -2,7 +2,7 @@
 
 **Target:** tests/fixtures/goodcli/goodcli.py
 **Date:** 2026-06-26
-**Score:** 25 / 30 applicable checks (83%)
+**Score:** 26 / 31 applicable checks (84%)
 **Failing gaps:** 2 Blocker · 1 Friction · 2 Target
 > ⚠️ Suspicious N/A: principles **P8** (async-aware execution) and **P9** (profiles) returned entirely N/A. Confirm the CLI genuinely wraps no async API and has no recurring non-auth config bundle.
 
@@ -75,6 +75,7 @@
 | 7.3 Long-form skill manifest (`SKILL.md`-style) teaches workflows | fail | T | Ft | No `SKILL.md`/skills dir for the target CLI; absence ⇒ FAIL@T. |
 | 7.4 Introspection generated/validated against implementation | na | — | Ft | 7.1 fails (no introspection) ⇒ N/A. |
 | 7.5 A `version` command reports the build (version + commit/date) | fail | F | Ft | No `version` command / `--version` surface; only `get`/`list`/`create`/`delete` are registered (goodcli.py:30-33) ⇒ absent ⇒ FAIL@F. |
+| 7.6 `--help`/`-h` at every level prints usage, exits 0, never executes the action | pass | — | C | argparse default `add_help` at root and every `add_parser` subcommand (goodcli.py:28-33); no `add_help=False`; help dispatches before any handler and exits 0. |
 
 ### P8. Async-aware execution
 

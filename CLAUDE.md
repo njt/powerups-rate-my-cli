@@ -18,8 +18,8 @@ The user-facing overview is `README.md`. This file is for working *on* the repo.
 ## The model (don't break these axes)
 
 - **The unit of work is a check** — a single pass/fail assertion. The essay seeds
-  most; 2.7 and 7.5 we added from real use. There are **47** (`P1–P5 = 24`,
-  `P6–P10 = 23`).
+  most; 2.7 and 7.5 we added from real use; 7.6 recovers the essay's Layer 1
+  (spec Appendix E). There are **48** (`P1–P5 = 24`, `P6–P10 = 24`).
 - **Two independent axes per check:**
   - **Severity** = *how bad* (Blocker / Friction / Target), from the essay's
     per-principle ladder.
@@ -46,16 +46,16 @@ The user-facing overview is `README.md`. This file is for working *on* the repo.
    `rubric.md` additionally carries a **Detection** column and a **Detection
    methodology** preamble (hard-won from real-CLI runs: *declared ≠ honored*,
    *absence-vs-fail*, *idiomatic verb sets*) — don't lose those lessons.
-2. **The count is 47.** If you add/remove a check, update: the count in
+2. **The count is 48.** If you add/remove a check, update: the count in
    `rubric.md`, spec Appendix A totals, and the `description` in
-   `skills/rate-my-cli/SKILL.md` frontmatter ("47 checks").
+   `skills/rate-my-cli/SKILL.md` frontmatter ("48 checks").
 3. **Only `skills/` loads as a capability.** `tests/`, `docs/`, `trevin-essay.md`
    ride along in the clone but aren't loaded by Claude Code.
 
 ## Layout
 
 ```
-skills/rate-my-cli/     SKILL.md (orchestration), rubric.md (47 checks), report-template.md
+skills/rate-my-cli/     SKILL.md (orchestration), rubric.md (48 checks), report-template.md
 docs/superpowers/       specs/ (design; Appendix A = rubric master, Appendix B = hardening),
                         plans/ (implementation plan)
 tests/fixtures/         synthetic CLIs, each with EXPECTED.md + a golden SCORECARD.md

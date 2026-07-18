@@ -2,7 +2,7 @@
 
 **Target:** tests/fixtures/badcli/badcli.py
 **Date:** 2026-06-26
-**Score:** 6 / 25 applicable checks (24%)
+**Score:** 7 / 26 applicable checks (27%)
 **Failing gaps:** 9 Blocker · 8 Friction · 2 Target
 **Suspicious N/A warning:** Principles P8 (Async-aware execution) and P9 (Persistent identity through profiles) returned entirely N/A — verify these subsystems are genuinely absent rather than missed.
 
@@ -75,6 +75,7 @@
 | 7.3 A long-form skill manifest teaches workflows | fail | T | Ft | No SKILL.md/skills dir for the target CLI ⇒ FAIL@T |
 | 7.4 Introspection is generated/validated against the real implementation | na | | Ft | 7.1 fails ⇒ N/A |
 | 7.5 A `version` command reports the build (version + commit/date) | fail | F | Ft | No `version` command/`--version` surface; argparse defines none (badcli.py:24-31) ⇒ absent ⇒ FAIL@F |
+| 7.6 `--help`/`-h` at every level prints usage, exits 0, never executes the action | pass | | C | argparse with default `add_help` at root and every `add_parser` subcommand (badcli.py:24-31); no `add_help=False`; help dispatches before any handler and exits 0 |
 
 ### P8. Async-aware execution
 
