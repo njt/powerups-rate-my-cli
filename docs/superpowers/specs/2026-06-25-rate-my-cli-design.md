@@ -432,5 +432,14 @@ analogs (`nargs=argparse.REMAINDER`, `parse_known_args` + hand-rolled dispatch)
 are named alongside cobra's; and a pass is evidenced by the *absence* of
 suppression at cited construction sites.
 
+A dedicated fixture supplies the fail case: `tests/fixtures/helptrapcli` mirrors
+goodcli's surface and handlers exactly, but dispatches through a hand-rolled
+command lookup (no root help path) and per-command parsers built with
+`add_help=False` + `parse_known_args` — so `helptrapcli delete X --force --help`
+deletes (verified by running the fixture). Every verdict except 7.6 matches
+goodcli's, making it the under-eager-evaluator guard: goodcli catches an
+evaluator that over-fails 7.6, helptrapcli catches one that rubber-stamps
+"framework ⇒ pass" without checking suppression.
+
 Real-run scorecards in `tests/real-runs/` predate 7.6 and remain 47-check
 records; they are not retro-edited.

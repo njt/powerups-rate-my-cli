@@ -65,6 +65,7 @@ tests/
     badcli/           # fails many Tier-1 conformance checks
     wrappercli/       # thin upstream-API wrapper → P8 & P9 score N/A
     goodcli/          # conformant baseline → feature gaps routed to proposals
+    helptrapcli/      # goodcli's surface, but --help is trapped → 7.6 must fail
     badcli-remediate/ # post-remediation copy (loop output)
   real-runs/          # scorecards from real-world CLIs (azdo, go365)
 ```

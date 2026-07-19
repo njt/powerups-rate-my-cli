@@ -74,6 +74,8 @@ trevin-essay.md         the inspiring essay (kept for reference)
   still *passes* (guard against an over-eager evaluator that fails everything).
 - Fixtures: `badcli` (conformance failures), `wrappercli` (P8/P9 → N/A, the
   upstream-wrapper case), `goodcli` (conformant; feature gaps → proposals),
+  `helptrapcli` (goodcli's surface but `--help` is trapped; the 7.6 fail case —
+  guards against an under-eager "framework ⇒ pass" evaluator), and
   `badcli-remediate` (post-loop output).
 - Prefer **subagent-driven** work (fresh subagent per task, spec + quality review)
   and dispatch the per-principle evaluators as read-only `Explore` agents, per
